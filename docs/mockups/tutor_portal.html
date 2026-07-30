@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>БиоПодготовка — кабинет репетитора (мокап)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F7F5EE;
+    --surface:#FFFFFF;
+    --surface-muted:#EEF1E7;
+    --ink:#1B2119;
+    --ink-soft:#5B6459;
+    --ink-faint:#8B9385;
+    --green-900:#15332A;
+    --green-700:#1F5C43;
+    --green-500:#2E7D57;
+    --green-100:#E4EEE6;
+    --amber-600:#C08A2E;
+    --amber-200:#F3E3B8;
+    --coral:#B5482F;
+    --coral-100:#F5E2DC;
+    --border:#DCD6C5;
+    --r-lg:20px;
+    --r-md:12px;
+    --r-sm:8px;
+    --font-display:'Source Serif 4', Georgia, serif;
+    --font-body:'Inter', -apple-system, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--font-body); font-size:15px; line-height:1.55;}
+  .hex{clip-path:polygon(25% 0%,75% 0%,100% 50%,75% 100%,25% 100%,0% 50%);}
+  a{color:inherit;}
+  button{font-family:inherit; cursor:pointer;}
+  select, input[type=text], input[type=datetime-local], textarea{
+    font-family:inherit; font-size:14px; padding:10px 12px; border:1px solid var(--border);
+    border-radius:var(--r-sm); background:var(--surface); color:var(--ink); width:100%;
+  }
+  label{font-size:12.5px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:6px;}
+  .field{margin-bottom:16px;}
+
+  .app{display:flex; min-height:100vh;}
+  .sidebar{width:250px; flex-shrink:0; background:var(--green-900); color:#EDEFE9; padding:28px 20px; position:sticky; top:0; height:100vh;}
+  .brand{display:flex; align-items:center; gap:10px; margin-bottom:34px;}
+  .brand .mark{width:26px; height:26px; background:var(--amber-600);}
+  .brand .mark::after{content:""; display:block; width:8px; height:8px; background:var(--green-900); border-radius:50%; margin:9px auto;}
+  .brand-text{font-family:var(--font-display); font-size:18px; font-weight:600;}
+  .brand-sub{font-size:11px; color:#9FB0A5; letter-spacing:.4px; text-transform:uppercase; margin-top:2px;}
+
+  .nav-item{display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:none; border:none; color:#C9D3C7; padding:11px 12px; border-radius:var(--r-sm); font-size:14px; font-weight:500; margin-bottom:2px; transition:background .15s, color .15s;}
+  .nav-item .dot{width:8px; height:8px; background:#4A6459; flex-shrink:0;}
+  .nav-item:hover{background:#1E4437; color:#fff;}
+  .nav-item.active{background:var(--amber-600); color:var(--green-900); font-weight:600;}
+  .nav-item.active .dot{background:var(--green-900);}
+
+  .student-card{margin-top:28px; padding:14px; background:#1E4437; border-radius:var(--r-md);}
+  .student-card .name{font-size:13px; font-weight:600; color:#fff;}
+  .student-card .exam{font-size:12px; color:#9FB0A5; margin-top:2px;}
+
+  .main{flex:1; padding:36px 44px; max-width:1080px;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  h1{font-family:var(--font-display); font-size:28px; font-weight:600; margin:0 0 4px;}
+  h2{font-family:var(--font-display); font-size:19px; font-weight:600; margin:0 0 14px;}
+  .page-sub{color:var(--ink-soft); font-size:14px; margin-bottom:26px;}
+  .page-head{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;}
+
+  .stat-row{display:flex; gap:16px; margin-bottom:24px;}
+  .stat{flex:1; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:18px 20px;}
+  .stat .num{font-family:var(--font-display); font-size:28px; font-weight:700; color:var(--green-700);}
+  .stat .label{font-size:12.5px; color:var(--ink-soft); margin-top:2px;}
+
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:22px 24px;}
+  .card + .card{margin-top:16px;}
+  .card-title{font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:var(--ink-faint); margin-bottom:14px;}
+
+  .btn{display:inline-flex; align-items:center; gap:8px; padding:10px 18px; border-radius:var(--r-sm); border:none; font-size:14px; font-weight:600;}
+  .btn-amber{background:var(--amber-600); color:var(--green-900);}
+  .btn-amber:hover{background:#D19B3F;}
+  .btn-outline{background:transparent; border:1px solid var(--border); color:var(--ink);}
+  .btn-outline:hover{background:var(--surface-muted);}
+  .btn-ghost{background:none; border:none; color:var(--green-700); font-weight:600; padding:0; font-size:13px;}
+  .back-link{display:inline-flex; align-items:center; gap:6px; color:var(--green-700); font-weight:600; font-size:13px; margin-bottom:20px; background:none; border:none; padding:0;}
+
+  table{width:100%; border-collapse:collapse;}
+  th{text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--ink-faint); padding:0 12px 10px; border-bottom:1px solid var(--border); font-weight:600;}
+  td{padding:13px 12px; border-bottom:1px solid var(--border); font-size:13.5px; vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  tr.clickable:hover{background:var(--surface-muted); cursor:pointer;}
+  .mat-title{font-weight:600;}
+  .mat-desc{color:var(--ink-soft); font-size:12.5px; margin-top:2px;}
+
+  .tag{display:inline-block; font-size:11px; font-weight:600; padding:4px 14px; background:var(--green-100); color:var(--green-700);}
+  .tag.amber{background:var(--amber-200); color:var(--amber-600);}
+  .tag.coral{background:var(--coral-100); color:var(--coral);}
+
+  .bar-track{flex:1; height:8px; background:var(--surface-muted); border-radius:6px; overflow:hidden;}
+  .bar-fill{height:100%; background:var(--green-500); border-radius:6px;}
+  .progress-cell{display:flex; align-items:center; gap:8px; width:140px;}
+  .progress-cell span{font-size:12.5px; font-weight:600; width:32px; text-align:right;}
+
+  .modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(21,51,42,.45); z-index:10;
+    align-items:flex-start; justify-content:center; padding-top:60px;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal{background:var(--surface); border-radius:var(--r-lg); padding:28px 30px; width:460px; max-width:90%;}
+  .modal h2{margin-bottom:18px;}
+  .modal-footer{display:flex; justify-content:flex-end; gap:10px; margin-top:22px;}
+
+  .lesson-row{display:flex; align-items:center; gap:16px; padding:16px 18px; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-md); margin-bottom:10px; cursor:pointer;}
+  .lesson-row:hover{border-color:var(--green-500);}
+  .lesson-num{width:34px; height:34px; flex-shrink:0; background:var(--green-100); color:var(--green-700); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;}
+  .lesson-body{flex:1;}
+  .lesson-title{font-size:14.5px; font-weight:600;}
+  .lesson-meta{font-size:12.5px; color:var(--ink-faint); margin-top:2px;}
+
+  .attach-row{display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--border);}
+  .attach-row:last-child{border-bottom:none;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="mark hex"></div>
+      <div>
+        <div class="brand-text">БиоПодготовка</div>
+        <div class="brand-sub">Кабинет репетитора</div>
+      </div>
+    </div>
+    <button class="nav-item active" data-view="dashboard" onclick="showView('dashboard', this)"><span class="dot hex"></span>Ученики</button>
+    <button class="nav-item" data-view="materials" onclick="showView('materials', this)"><span class="dot hex"></span>Материалы</button>
+    <button class="nav-item" data-view="templates" onclick="showView('templates', this)"><span class="dot hex"></span>Планы уроков</button>
+    <button class="nav-item" data-view="bank" onclick="showView('bank', this)"><span class="dot hex"></span>Вопросы и тесты</button>
+
+    <div class="student-card">
+      <div class="name">Марина Петровна</div>
+      <div class="exam">Репетитор по биологии</div>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- DASHBOARD: STUDENT LIST -->
+    <section class="view active" id="dashboard">
+      <h1>Ученики</h1>
+      <div class="page-sub">Обзор всех учеников и их занятий</div>
+
+      <div class="stat-row">
+        <div class="stat"><div class="num">12</div><div class="label">Всего учеников</div></div>
+        <div class="stat"><div class="num">9</div><div class="label">Занятий на этой неделе</div></div>
+        <div class="stat"><div class="num">3</div><div class="label">Попыток тестов на проверку</div></div>
+      </div>
+
+      <div class="card">
+        <table>
+          <thead><tr><th style="width:26%">Ученик</th><th style="width:22%">Следующее занятие</th><th style="width:26%">Прогресс</th><th>Статус</th></tr></thead>
+          <tbody id="students-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- STUDENT DETAIL -->
+    <section class="view" id="student-detail">
+      <button class="back-link" onclick="showView('dashboard')">← Ко всем ученикам</button>
+      <div id="student-detail-body"></div>
+    </section>
+
+    <!-- MATERIALS LIBRARY -->
+    <section class="view" id="materials">
+      <div class="page-head">
+        <div><h1>Материалы</h1><div class="page-sub">Библиотека — загружается один раз, используется в любом количестве уроков</div></div>
+        <button class="btn btn-amber" onclick="openModal('upload-modal')">+ Загрузить материал</button>
+      </div>
+      <div class="card">
+        <table>
+          <thead><tr><th style="width:30%">Название</th><th style="width:16%">Тип</th><th style="width:18%">Тема</th><th style="width:26%">Описание</th><th></th></tr></thead>
+          <tbody id="materials-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- LESSON TEMPLATES LIST -->
+    <section class="view" id="templates">
+      <div class="page-head">
+        <div><h1>Планы уроков</h1><div class="page-sub">Шаблон урока создаётся один раз и переиспользуется для всех учеников</div></div>
+        <button class="btn btn-amber">+ Новый план урока</button>
+      </div>
+      <div id="templates-list"></div>
+    </section>
+
+    <!-- LESSON TEMPLATE DETAIL -->
+    <section class="view" id="template-detail">
+      <button class="back-link" onclick="showView('templates')">← Ко всем планам</button>
+      <div id="template-detail-body"></div>
+    </section>
+
+    <!-- QUESTION / TEST BANK -->
+    <section class="view" id="bank">
+      <div class="page-head">
+        <div><h1>Вопросы и тесты</h1><div class="page-sub">Банк вопросов и готовые тесты, доступные всем ученикам</div></div>
+        <button class="btn btn-amber">+ Добавить вопрос</button>
+      </div>
+
+      <h2 style="margin-top:6px;">Тесты</h2>
+      <div class="card" style="margin-bottom:24px;">
+        <table>
+          <thead><tr><th style="width:30%">Название</th><th style="width:20%">Тема</th><th style="width:16%">Вопросов</th><th style="width:16%">Лимит времени</th><th></th></tr></thead>
+          <tbody>
+            <tr class="clickable"><td class="mat-title">Клеточное строение</td><td><span class="tag">Клетка</span></td><td>10</td><td>15 мин</td><td><button class="btn-ghost">Редактировать</button></td></tr>
+            <tr class="clickable"><td class="mat-title">Законы Менделя</td><td><span class="tag">Генетика</span></td><td>12</td><td>18 мин</td><td><button class="btn-ghost">Редактировать</button></td></tr>
+            <tr class="clickable"><td class="mat-title">Экологические факторы</td><td><span class="tag">Экология</span></td><td>9</td><td>14 мин</td><td><button class="btn-ghost">Редактировать</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Банк вопросов</h2>
+      <div class="card">
+        <table>
+          <thead><tr><th style="width:44%">Вопрос</th><th style="width:16%">Тема</th><th style="width:16%">Тип</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>Какой генотип у потомства при Aa × Aa...</td><td><span class="tag">Генетика</span></td><td>Один ответ</td><td><button class="btn-ghost">Изменить</button></td></tr>
+            <tr><td>На какой фазе митоза хромосомы располагаются по экватору...</td><td><span class="tag">Клетка</span></td><td>Один ответ</td><td><button class="btn-ghost">Изменить</button></td></tr>
+            <tr><td>Опишите взаимодействие популяций «хищник — жертва»</td><td><span class="tag coral">Экология</span></td><td>Развёрнутый</td><td><button class="btn-ghost">Изменить</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- UPLOAD MATERIAL MODAL -->
+<div class="modal-overlay" id="upload-modal">
+  <div class="modal">
+    <h2>Загрузить материал</h2>
+    <div class="field"><label>Название</label><input type="text" placeholder="Например: Законы_Менделя.pdf"></div>
+    <div class="field"><label>Тип материала</label>
+      <select><option>Презентация</option><option>Учебник</option><option>Видео</option><option>Домашнее задание</option><option>Другое</option></select>
+    </div>
+    <div class="field"><label>Тема</label>
+      <select><option>Клетка</option><option>Обмен веществ</option><option>Генетика</option><option>Эволюция</option><option>Экология</option></select>
+    </div>
+    <div class="field"><label>Короткое описание</label><textarea rows="2" placeholder="Пара предложений — что внутри"></textarea></div>
+    <div class="field"><label>Файл</label><input type="text" placeholder="Перетащите файл сюда или выберите" disabled></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('upload-modal')">Отмена</button>
+      <button class="btn btn-amber" onclick="closeModal('upload-modal')">Сохранить в библиотеку</button>
+    </div>
+  </div>
+</div>
+
+<!-- ASSIGN LESSON MODAL -->
+<div class="modal-overlay" id="assign-modal">
+  <div class="modal">
+    <h2>Назначить занятие ученику</h2>
+    <div class="field"><label>План урока</label>
+      <select><option>Занятие 4. Генетика: законы Менделя</option><option>Занятие 5. Эволюционное учение</option><option>Занятие 6. Экологические факторы</option></select>
+    </div>
+    <div class="field"><label>Дата и время</label><input type="text" placeholder="31.07.2026, 16:00"></div>
+    <div class="field"><label>Ссылка на созвон</label><input type="text" placeholder="https://meet.google.com/..."></div>
+    <div style="font-size:12.5px; color:var(--ink-faint); margin-top:-6px;">Материалы подтянутся автоматически из выбранного плана урока — прикреплять их заново не нужно.</div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('assign-modal')">Отмена</button>
+      <button class="btn btn-amber" onclick="closeModal('assign-modal')">Назначить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ATTACH MATERIAL MODAL -->
+<div class="modal-overlay" id="attach-modal">
+  <div class="modal">
+    <h2>Добавить материал из библиотеки</h2>
+    <div class="field"><label>Материал</label>
+      <select>
+        <option>Каменский, гл. 5–6</option>
+        <option>Видео: наследование признаков</option>
+        <option>ДЗ №4 — задачи на дигибридное скрещивание</option>
+      </select>
+    </div>
+    <div class="field"><label>Роль в уроке</label>
+      <select><option>Презентация</option><option>Учебник</option><option>Домашнее задание</option><option>Дополнительно</option></select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('attach-modal')">Отмена</button>
+      <button class="btn btn-amber" onclick="closeModal('attach-modal')">Добавить к уроку</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showView(id, navEl){
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const target = navEl || document.querySelector(`.nav-item[data-view="${id}"]`);
+    if(target) target.classList.add('active');
+    window.scrollTo(0,0);
+  }
+  function openModal(id){ document.getElementById(id).classList.add('open'); }
+  function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+  // ---------- Data ----------
+  const students = [
+    {name:"Аня Смирнова", next:"31 июля, 16:00", progress:68, status:"Активна",
+     phone:"+7 916 123-45-67", email:"anya.smirnova@example.com", messenger:"Telegram @anya_smir",
+     parentName:"Ольга Смирнова", parentPhone:"+7 916 555-11-22",
+     plan:"8 занятий / месяц", paymentStatus:"Оплачено", nextPayment:"01 авг 2026",
+     payments:[{date:"01 июля 2026", amount:"16 000 ₽", status:"Оплачено"},{date:"01 июня 2026", amount:"16 000 ₽", status:"Оплачено"}]},
+    {name:"Игорь Ковалёв", next:"01 авг, 18:00", progress:42, status:"Активен",
+     phone:"+7 903 234-56-78", email:"i.kovalev@example.com", messenger:"WhatsApp",
+     parentName:"Дмитрий Ковалёв", parentPhone:"+7 903 777-33-44",
+     plan:"4 занятия / месяц", paymentStatus:"Ожидает оплаты", nextPayment:"28 июля 2026",
+     payments:[{date:"01 июля 2026", amount:"8 000 ₽", status:"Оплачено"},{date:"01 июня 2026", amount:"8 000 ₽", status:"Просрочено"}]},
+    {name:"Соня Лебедева", next:"29 июля, 15:00", progress:81, status:"Активна",
+     phone:"+7 925 345-67-89", email:"sonya.leb@example.com", messenger:"Telegram @sonyaleb",
+     parentName:"Анна Лебедева", parentPhone:"+7 925 888-99-00",
+     plan:"8 занятий / месяц", paymentStatus:"Оплачено", nextPayment:"05 авг 2026",
+     payments:[{date:"05 июля 2026", amount:"16 000 ₽", status:"Оплачено"}]},
+    {name:"Тимур Ахметов", next:"—", progress:23, status:"Приостановлено",
+     phone:"+7 967 456-78-90", email:"timur.ah@example.com", messenger:"—",
+     parentName:"Роза Ахметова", parentPhone:"+7 967 222-11-00",
+     plan:"Абонемент приостановлен", paymentStatus:"—", nextPayment:"—",
+     payments:[{date:"01 июня 2026", amount:"8 000 ₽", status:"Оплачено"}]},
+    {name:"Катя Новикова", next:"02 авг, 17:00", progress:57, status:"Активна",
+     phone:"+7 926 567-89-01", email:"k.novikova@example.com", messenger:"Telegram @katya_n",
+     parentName:"Мария Новикова", parentPhone:"+7 926 444-55-66",
+     plan:"4 занятия / месяц", paymentStatus:"Оплачено", nextPayment:"02 авг 2026",
+     payments:[{date:"02 июля 2026", amount:"8 000 ₽", status:"Оплачено"},{date:"02 июня 2026", amount:"8 000 ₽", status:"Оплачено"}]},
+  ];
+
+  const materials = [
+    {title:"Клетка_вводная.pdf", type:"Презентация", topic:"Клетка", desc:"Строение клетки, органеллы и функции", used:3},
+    {title:"Каменский, гл. 2", type:"Учебник", topic:"Клетка", desc:"Клеточная теория и органоиды", used:3},
+    {title:"Фотосинтез_ЕГЭ.pdf", type:"Презентация", topic:"Обмен веществ", desc:"Световая и тёмновая фаза", used:2},
+    {title:"Генетика_основы.pdf", type:"Презентация", topic:"Генетика", desc:"Решётка Пеннета, моногибридное скрещивание", used:5},
+    {title:"Законы_Менделя.pdf", type:"Презентация", topic:"Генетика", desc:"Дигибридное и сцепленное наследование", used:4},
+    {title:"Эволюция_Дарвин.pdf", type:"Презентация", topic:"Эволюция", desc:"Движущие силы эволюции", used:2},
+  ];
+
+  const templates = [
+    {n:1, title:"Введение: строение клетки", count:3},
+    {n:2, title:"Фотосинтез и энергетический обмен", count:3},
+    {n:3, title:"Основы генетики: моногибридное скрещивание", count:3},
+    {n:4, title:"Генетика: законы Менделя", count:3},
+    {n:5, title:"Эволюционное учение", count:2},
+  ];
+
+  const templateMaterials = [
+    {t:"Презентация", n:"Законы_Менделя.pdf"},
+    {t:"Учебник", n:"Каменский, гл. 5–6"},
+    {t:"Домашнее задание", n:"ДЗ №4 — задачи на дигибридное скрещивание"},
+  ];
+
+  // ---------- Render ----------
+  function renderStudents(){
+    document.getElementById('students-body').innerHTML = students.map((s,i) => `
+      <tr class="clickable" onclick="openStudent(${i})">
+        <td class="mat-title">${s.name}</td>
+        <td>${s.next}</td>
+        <td><div class="progress-cell"><div class="bar-track"><div class="bar-fill" style="width:${s.progress}%"></div></div><span>${s.progress}%</span></div></td>
+        <td><span class="tag ${s.status==='Приостановлено'?'coral':''}">${s.status}</span></td>
+      </tr>`).join('');
+  }
+
+  function openStudent(i){
+    const s = students[i];
+    document.getElementById('student-detail-body').innerHTML = `
+      <h1>${s.name}</h1>
+      <div class="page-sub">Общий прогресс: ${s.progress}% · Следующее занятие: ${s.next}</div>
+
+      <div class="card">
+        <div class="page-head" style="align-items:center;">
+          <div class="card-title" style="margin:0;">Расписание</div>
+          <button class="btn btn-amber" onclick="openModal('assign-modal')">+ Назначить занятие</button>
+        </div>
+        <div style="margin-top:14px;">
+          <div class="attach-row"><div><span class="tag">Пройдено</span> &nbsp; Занятие 3. Основы генетики — 17 июля</div></div>
+          <div class="attach-row"><div><span class="tag amber">Предстоит</span> &nbsp; Занятие 4. Законы Менделя — 31 июля, 16:00</div><button class="btn-ghost">Изменить</button></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Результаты тестов</div>
+        <div class="attach-row"><div>Клеточное строение</div><span class="tag">8/10</span></div>
+        <div class="attach-row"><div>Основы генетики</div><span class="tag amber">6/10</span></div>
+        <div class="attach-row"><div>Фотосинтез</div><span class="tag">9/10</span></div>
+      </div>
+
+      <div class="page-head" style="align-items:stretch; gap:16px; margin-top:16px;">
+        <div class="card" style="flex:1; margin-top:0;">
+          <div class="page-head" style="align-items:center; margin-bottom:0;">
+            <div class="card-title" style="margin:0;">Контакты</div>
+            <button class="btn-ghost">Изменить</button>
+          </div>
+          <div style="margin-top:10px;">
+            <div class="attach-row"><div>Телефон</div><div style="font-weight:500;">${s.phone}</div></div>
+            <div class="attach-row"><div>Email</div><div style="font-weight:500;">${s.email}</div></div>
+            <div class="attach-row"><div>Мессенджер</div><div style="font-weight:500;">${s.messenger}</div></div>
+            <div class="attach-row"><div>Родитель</div><div style="font-weight:500;">${s.parentName}</div></div>
+            <div class="attach-row"><div>Телефон родителя</div><div style="font-weight:500;">${s.parentPhone}</div></div>
+          </div>
+        </div>
+
+        <div class="card" style="flex:1; margin-top:0;">
+          <div class="page-head" style="align-items:center; margin-bottom:0;">
+            <div class="card-title" style="margin:0;">Оплата</div>
+            <button class="btn-ghost">Изменить тариф</button>
+          </div>
+          <div style="margin-top:10px;">
+            <div class="attach-row"><div>Тариф</div><div style="font-weight:500;">${s.plan}</div></div>
+            <div class="attach-row"><div>Статус</div><span class="tag ${s.paymentStatus==='Ожидает оплаты'?'amber':(s.paymentStatus==='—'?'':'')}">${s.paymentStatus}</span></div>
+            <div class="attach-row"><div>Следующий платёж</div><div style="font-weight:500;">${s.nextPayment}</div></div>
+          </div>
+          <div class="card-title" style="margin-top:16px;">История платежей</div>
+          ${s.payments.map(p => `
+            <div class="attach-row">
+              <div>${p.date} · ${p.amount}</div>
+              <span class="tag ${p.status==='Просрочено'?'coral':''}">${p.status}</span>
+            </div>`).join('')}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Заметки</div>
+        <textarea rows="3" placeholder="Личные заметки об ученике — видны только вам">Хорошо даётся молекулярная биология, стоит больше времени уделить генетическим задачам.</textarea>
+      </div>
+    `;
+    showView('student-detail');
+  }
+
+  function renderMaterials(){
+    document.getElementById('materials-body').innerHTML = materials.map(m => `
+      <tr>
+        <td><div class="mat-title">${m.title}</div></td>
+        <td><span class="tag">${m.type}</span></td>
+        <td>${m.topic}</td>
+        <td><div class="mat-desc">${m.desc}</div><div style="font-size:11.5px; color:var(--ink-faint); margin-top:4px;">используется в ${m.used} уроках</div></td>
+        <td><button class="btn-ghost">Изменить</button></td>
+      </tr>`).join('');
+  }
+
+  function renderTemplates(){
+    document.getElementById('templates-list').innerHTML = templates.map(t => `
+      <div class="lesson-row" onclick="openTemplate(${t.n})">
+        <div class="lesson-num">${t.n}</div>
+        <div class="lesson-body">
+          <div class="lesson-title">Занятие ${t.n}. ${t.title}</div>
+          <div class="lesson-meta">${t.count} материала(ов) прикреплено</div>
+        </div>
+      </div>`).join('');
+  }
+
+  function openTemplate(n){
+    const t = templates.find(x => x.n === n);
+    document.getElementById('template-detail-body').innerHTML = `
+      <h1>Занятие ${t.n}. ${t.title}</h1>
+      <div class="page-sub">Материалы этого плана автоматически попадут в расписание любого ученика</div>
+      <div class="card">
+        <div class="page-head" style="align-items:center;">
+          <div class="card-title" style="margin:0;">Прикреплённые материалы</div>
+          <button class="btn btn-outline" onclick="openModal('attach-modal')">+ Добавить из библиотеки</button>
+        </div>
+        <div style="margin-top:10px;">
+          ${templateMaterials.map(m => `
+            <div class="attach-row">
+              <div><span class="tag">${m.t}</span> &nbsp; <span style="font-size:13.5px; font-weight:500;">${m.n}</span></div>
+              <button class="btn-ghost">Убрать</button>
+            </div>`).join('')}
+        </div>
+      </div>
+    `;
+    showView('template-detail');
+  }
+
+  renderStudents();
+  renderMaterials();
+  renderTemplates();
+</script>
+</body>
+</html>

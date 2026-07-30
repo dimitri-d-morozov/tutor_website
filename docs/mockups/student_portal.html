@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>БиоПодготовка — кабинет ученика (мокап)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F7F5EE;
+    --surface:#FFFFFF;
+    --surface-muted:#EEF1E7;
+    --ink:#1B2119;
+    --ink-soft:#5B6459;
+    --ink-faint:#8B9385;
+    --green-900:#15332A;
+    --green-700:#1F5C43;
+    --green-500:#2E7D57;
+    --green-100:#E4EEE6;
+    --amber-600:#C08A2E;
+    --amber-200:#F3E3B8;
+    --coral:#B5482F;
+    --coral-100:#F5E2DC;
+    --border:#DCD6C5;
+    --r-lg:20px;
+    --r-md:12px;
+    --r-sm:8px;
+    --font-display:'Source Serif 4', Georgia, serif;
+    --font-body:'Inter', -apple-system, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:var(--font-body); font-size:15px; line-height:1.55;
+  }
+  .hex{clip-path:polygon(25% 0%,75% 0%,100% 50%,75% 100%,25% 100%,0% 50%);}
+  a{color:inherit;}
+  button{font-family:inherit; cursor:pointer;}
+
+  /* Layout */
+  .app{display:flex; min-height:100vh;}
+  .sidebar{
+    width:250px; flex-shrink:0; background:var(--green-900); color:#EDEFE9;
+    padding:28px 20px; position:sticky; top:0; height:100vh;
+  }
+  .brand{display:flex; align-items:center; gap:10px; margin-bottom:34px;}
+  .brand .mark{width:26px; height:26px; background:var(--amber-600);}
+  .brand .mark::after{content:""; display:block; width:8px; height:8px; background:var(--green-900); border-radius:50%; margin:9px auto;}
+  .brand-text{font-family:var(--font-display); font-size:18px; font-weight:600; letter-spacing:.2px;}
+  .brand-sub{font-size:11px; color:#9FB0A5; letter-spacing:.4px; text-transform:uppercase; margin-top:2px;}
+
+  .nav-item{
+    display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+    background:none; border:none; color:#C9D3C7; padding:11px 12px; border-radius:var(--r-sm);
+    font-size:14px; font-weight:500; margin-bottom:2px; transition:background .15s, color .15s;
+  }
+  .nav-item .dot{width:8px; height:8px; background:#4A6459; flex-shrink:0;}
+  .nav-item:hover{background:#1E4437; color:#fff;}
+  .nav-item.active{background:var(--amber-600); color:var(--green-900); font-weight:600;}
+  .nav-item.active .dot{background:var(--green-900);}
+
+  .student-card{
+    margin-top:28px; padding:14px; background:#1E4437; border-radius:var(--r-md);
+  }
+  .student-card .name{font-size:13px; font-weight:600; color:#fff;}
+  .student-card .exam{font-size:12px; color:#9FB0A5; margin-top:2px;}
+
+  .main{flex:1; padding:36px 44px; max-width:980px;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  h1{font-family:var(--font-display); font-size:28px; font-weight:600; margin:0 0 4px;}
+  h2{font-family:var(--font-display); font-size:20px; font-weight:600; margin:0 0 14px;}
+  .page-sub{color:var(--ink-soft); font-size:14px; margin-bottom:28px;}
+
+  .grid-2{display:grid; grid-template-columns:1.3fr 1fr; gap:20px;}
+  .card{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg);
+    padding:22px 24px;
+  }
+  .card + .card{margin-top:16px;}
+  .card-title{font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:var(--ink-faint); margin-bottom:12px;}
+
+  /* Next lesson card */
+  .next-lesson{background:var(--green-900); color:#fff; border:none;}
+  .next-lesson .card-title{color:#9FB0A5;}
+  .next-lesson h3{font-family:var(--font-display); font-size:19px; margin:0 0 6px; font-weight:600;}
+  .next-lesson .meta{font-size:13px; color:#C9D3C7; margin-bottom:16px;}
+  .btn{
+    display:inline-flex; align-items:center; gap:8px; padding:10px 18px; border-radius:var(--r-sm);
+    border:none; font-size:14px; font-weight:600;
+  }
+  .btn-amber{background:var(--amber-600); color:var(--green-900);}
+  .btn-amber:hover{background:#D19B3F;}
+  .btn-outline{background:transparent; border:1px solid var(--border); color:var(--ink);}
+  .btn-outline:hover{background:var(--surface-muted);}
+  .btn-ghost{background:none; border:none; color:var(--green-700); font-weight:600; padding:0; font-size:13px;}
+
+  /* Progress bars */
+  .topic-row{display:flex; align-items:center; gap:12px; margin-bottom:14px;}
+  .topic-row:last-child{margin-bottom:0;}
+  .topic-name{width:190px; font-size:13px; flex-shrink:0;}
+  .bar-track{flex:1; height:8px; background:var(--surface-muted); border-radius:6px; overflow:hidden;}
+  .bar-fill{height:100%; background:var(--green-500); border-radius:6px;}
+  .topic-pct{width:36px; text-align:right; font-size:13px; font-weight:600; color:var(--ink-soft);}
+
+  .result-row{display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border);}
+  .result-row:last-child{border-bottom:none;}
+  .result-row .rtitle{font-size:13.5px; font-weight:500;}
+  .result-row .rdate{font-size:12px; color:var(--ink-faint);}
+  .score-pill{font-size:13px; font-weight:700; padding:3px 10px; border-radius:20px;}
+  .score-good{background:var(--green-100); color:var(--green-700);}
+  .score-mid{background:var(--amber-200); color:var(--amber-600);}
+
+  /* Tags */
+  .tag{
+    display:inline-block; font-size:11px; font-weight:600; padding:4px 14px;
+    background:var(--green-100); color:var(--green-700);
+  }
+  .tag.amber{background:var(--amber-200); color:var(--amber-600);}
+  .tag.coral{background:var(--coral-100); color:var(--coral);}
+
+  /* Lessons list */
+  .lesson-item{
+    display:flex; align-items:center; gap:16px; padding:16px 18px; background:var(--surface);
+    border:1px solid var(--border); border-radius:var(--r-md); margin-bottom:10px; cursor:pointer;
+    transition:border-color .15s;
+  }
+  .lesson-item:hover{border-color:var(--green-500);}
+  .lesson-num{
+    width:34px; height:34px; flex-shrink:0; background:var(--green-100); color:var(--green-700);
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;
+  }
+  .lesson-item.done .lesson-num{background:var(--green-700); color:#fff;}
+  .lesson-body{flex:1;}
+  .lesson-title{font-size:14.5px; font-weight:600;}
+  .lesson-meta{font-size:12.5px; color:var(--ink-faint); margin-top:2px;}
+  .lesson-status{font-size:12px; font-weight:600; padding:4px 12px; border-radius:20px; flex-shrink:0;}
+  .status-done{background:var(--green-100); color:var(--green-700);}
+  .status-upcoming{background:var(--amber-200); color:var(--amber-600);}
+
+  /* Materials table */
+  table{width:100%; border-collapse:collapse;}
+  th{
+    text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--ink-faint);
+    padding:0 12px 10px; border-bottom:1px solid var(--border); font-weight:600;
+  }
+  td{padding:13px 12px; border-bottom:1px solid var(--border); font-size:13.5px; vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  .mat-title{font-weight:600;}
+  .mat-desc{color:var(--ink-soft); font-size:12.5px; margin-top:2px;}
+  .filters{display:flex; gap:8px; margin-bottom:20px;}
+  .chip{
+    padding:7px 16px; border-radius:20px; border:1px solid var(--border); background:var(--surface);
+    font-size:13px; font-weight:500;
+  }
+  .chip.active{background:var(--green-900); color:#fff; border-color:var(--green-900);}
+
+  /* Tests */
+  .test-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .test-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:20px;}
+  .test-card h3{font-family:var(--font-display); font-size:16.5px; margin:8px 0 6px; font-weight:600;}
+  .test-meta{font-size:12.5px; color:var(--ink-faint); margin-bottom:16px;}
+  .test-card .btn{width:100%; justify-content:center;}
+
+  /* Back link */
+  .back-link{display:inline-flex; align-items:center; gap:6px; color:var(--green-700); font-weight:600; font-size:13px; margin-bottom:20px; background:none; border:none; padding:0;}
+
+  /* Test running */
+  .timer{
+    display:inline-flex; align-items:center; gap:8px; background:var(--coral-100); color:var(--coral);
+    font-weight:700; font-size:14px; padding:8px 16px; border-radius:20px; margin-bottom:24px;
+  }
+  .question-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:28px;}
+  .q-progress{font-size:12.5px; color:var(--ink-faint); margin-bottom:10px; font-weight:600;}
+  .q-text{font-family:var(--font-display); font-size:19px; font-weight:600; margin-bottom:22px; line-height:1.5;}
+  .option{
+    display:flex; align-items:center; gap:12px; padding:14px 16px; border:1px solid var(--border);
+    border-radius:var(--r-md); margin-bottom:10px; font-size:14px;
+  }
+  .option:hover{border-color:var(--green-500); background:var(--green-100);}
+  .option .radio{width:18px; height:18px; border-radius:50%; border:2px solid var(--border); flex-shrink:0;}
+  .q-footer{display:flex; justify-content:space-between; align-items:center; margin-top:24px;}
+
+  /* Mistakes */
+  .mistake-item{
+    background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--coral);
+    border-radius:var(--r-md); padding:16px 18px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:16px;
+  }
+  .mistake-q{font-size:13.5px; font-weight:500;}
+  .mistake-meta{font-size:12px; color:var(--ink-faint); margin-top:4px;}
+
+  .stat-row{display:flex; gap:16px; margin-bottom:24px;}
+  .stat{flex:1; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:18px 20px;}
+  .stat .num{font-family:var(--font-display); font-size:30px; font-weight:700; color:var(--green-700);}
+  .stat .label{font-size:12.5px; color:var(--ink-soft); margin-top:2px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="mark hex"></div>
+      <div>
+        <div class="brand-text">БиоПодготовка</div>
+        <div class="brand-sub">Кабинет ученика</div>
+      </div>
+    </div>
+    <button class="nav-item active" data-view="dashboard" onclick="showView('dashboard', this)"><span class="dot hex"></span>Дашборд</button>
+    <button class="nav-item" data-view="lessons" onclick="showView('lessons', this)"><span class="dot hex"></span>План занятий</button>
+    <button class="nav-item" data-view="materials" onclick="showView('materials', this)"><span class="dot hex"></span>Все материалы</button>
+    <button class="nav-item" data-view="tests" onclick="showView('tests', this)"><span class="dot hex"></span>Тесты</button>
+    <button class="nav-item" data-view="mistakes" onclick="showView('mistakes', this)"><span class="dot hex"></span>Работа над ошибками</button>
+
+    <div class="student-card">
+      <div class="name">Аня Смирнова</div>
+      <div class="exam">Готовится к ЕГЭ · 11 класс</div>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <section class="view active" id="dashboard">
+      <h1>Привет, Аня!</h1>
+      <div class="page-sub">Вот как продвигается подготовка к экзамену</div>
+
+      <div class="grid-2">
+        <div>
+          <div class="card next-lesson">
+            <div class="card-title">Следующее занятие</div>
+            <h3>Генетика: законы Менделя</h3>
+            <div class="meta">Чт, 31 июля · 16:00–17:30 · с Мариной Петровной</div>
+            <a class="btn btn-amber" href="#">Подключиться к занятию</a>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Прогресс по разделам</div>
+            <div class="topic-row"><div class="topic-name">Клетка и её строение</div><div class="bar-track"><div class="bar-fill" style="width:82%"></div></div><div class="topic-pct">82%</div></div>
+            <div class="topic-row"><div class="topic-name">Генетика</div><div class="bar-track"><div class="bar-fill" style="width:54%"></div></div><div class="topic-pct">54%</div></div>
+            <div class="topic-row"><div class="topic-name">Эволюция</div><div class="bar-track"><div class="bar-fill" style="width:37%"></div></div><div class="topic-pct">37%</div></div>
+            <div class="topic-row"><div class="topic-name">Экология</div><div class="bar-track"><div class="bar-fill" style="width:65%"></div></div><div class="topic-pct">65%</div></div>
+            <div class="topic-row"><div class="topic-name">Анатомия человека</div><div class="bar-track"><div class="bar-fill" style="width:71%"></div></div><div class="topic-pct">71%</div></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-title">Последние результаты</div>
+            <div class="result-row"><div><div class="rtitle">Клеточное строение</div><div class="rdate">24 июля</div></div><div class="score-pill score-good">8/10</div></div>
+            <div class="result-row"><div><div class="rtitle">Основы генетики</div><div class="rdate">18 июля</div></div><div class="score-pill score-mid">6/10</div></div>
+            <div class="result-row"><div><div class="rtitle">Фотосинтез</div><div class="rdate">11 июля</div></div><div class="score-pill score-good">9/10</div></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Быстрые действия</div>
+            <div style="display:flex; flex-direction:column; gap:10px; margin-top:4px;">
+              <button class="btn btn-outline" onclick="showView('lessons')">Открыть план занятий</button>
+              <button class="btn btn-outline" onclick="showView('mistakes')">Повторить ошибки (7)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LESSONS LIST -->
+    <section class="view" id="lessons">
+      <h1>План занятий</h1>
+      <div class="page-sub">Все занятия курса — пройденные и предстоящие</div>
+      <div id="lessons-list"></div>
+    </section>
+
+    <!-- LESSON DETAIL -->
+    <section class="view" id="lesson-detail">
+      <button class="back-link" onclick="showView('lessons')">← Назад к плану занятий</button>
+      <div id="lesson-detail-body"></div>
+    </section>
+
+    <!-- MATERIALS -->
+    <section class="view" id="materials">
+      <h1>Все материалы</h1>
+      <div class="page-sub">Всё, что использовалось на занятиях — в одном месте</div>
+      <div class="filters">
+        <div class="chip active">Все</div>
+        <div class="chip">Презентации</div>
+        <div class="chip">Учебники</div>
+        <div class="chip">Видео</div>
+        <div class="chip">Домашние задания</div>
+      </div>
+      <table>
+        <thead><tr><th style="width:32%">Название</th><th style="width:14%">Тип</th><th style="width:20%">Тема</th><th>Описание</th></tr></thead>
+        <tbody id="materials-body"></tbody>
+      </table>
+    </section>
+
+    <!-- TESTS -->
+    <section class="view" id="tests">
+      <h1>Тесты по темам</h1>
+      <div class="page-sub">Выбери тему и проверь себя с таймером</div>
+      <div class="test-grid" id="tests-grid"></div>
+    </section>
+
+    <!-- TEST RUNNING -->
+    <section class="view" id="test-run">
+      <button class="back-link" onclick="showView('tests')">← Выйти из теста</button>
+      <div class="timer">⏱ 14:32 осталось</div>
+      <div class="question-card">
+        <div class="q-progress">Вопрос 3 из 12 · Генетика</div>
+        <div class="q-text">Какой генотип будет у потомства при скрещивании двух гетерозигот Aa × Aa, если признак А доминантный?</div>
+        <div class="option"><div class="radio"></div> AA : Aa : aa = 1 : 2 : 1</div>
+        <div class="option"><div class="radio"></div> Все потомки Aa</div>
+        <div class="option"><div class="radio"></div> AA : aa = 1 : 1</div>
+        <div class="option"><div class="radio"></div> Все потомки аа</div>
+        <div class="q-footer">
+          <button class="btn-ghost">Пропустить вопрос</button>
+          <button class="btn btn-amber" onclick="showView('test-result')">Следующий вопрос</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TEST RESULT -->
+    <section class="view" id="test-result">
+      <h1>Тест завершён</h1>
+      <div class="page-sub">Генетика: законы Менделя</div>
+      <div class="stat-row">
+        <div class="stat"><div class="num">8/12</div><div class="label">Правильных ответов</div></div>
+        <div class="stat"><div class="num">67%</div><div class="label">Результат</div></div>
+        <div class="stat"><div class="num">11:20</div><div class="label">Затрачено времени</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Разбор по темам</div>
+        <div class="topic-row"><div class="topic-name">Моногибридное скрещивание</div><div class="bar-track"><div class="bar-fill" style="width:90%"></div></div><div class="topic-pct">90%</div></div>
+        <div class="topic-row"><div class="topic-name">Дигибридное скрещивание</div><div class="bar-track"><div class="bar-fill" style="width:45%"></div></div><div class="topic-pct">45%</div></div>
+        <div class="topic-row"><div class="topic-name">Сцепленное наследование</div><div class="bar-track"><div class="bar-fill" style="width:40%"></div></div><div class="topic-pct">40%</div></div>
+      </div>
+      <div style="margin-top:20px; display:flex; gap:12px;">
+        <button class="btn btn-amber" onclick="showView('mistakes')">Разобрать ошибки</button>
+        <button class="btn btn-outline" onclick="showView('dashboard', document.querySelector('[data-view=dashboard]'))">На дашборд</button>
+      </div>
+    </section>
+
+    <!-- MISTAKES -->
+    <section class="view" id="mistakes">
+      <h1>Работа над ошибками</h1>
+      <div class="page-sub">Вопросы, где раньше были неверные ответы — стоит повторить</div>
+      <div id="mistakes-list"></div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  // ---------- Navigation ----------
+  function showView(id, navEl){
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const target = navEl || document.querySelector(`.nav-item[data-view="${id}"]`);
+    if(target) target.classList.add('active');
+    window.scrollTo(0,0);
+  }
+
+  // ---------- Data ----------
+  const lessons = [
+    {n:1, title:"Введение: строение клетки", date:"03 июля", status:"done",
+     materials:[{t:"Презентация", n:"Клетка_вводная.pdf"},{t:"Учебник", n:"Каменский, гл. 2"},{t:"Домашнее задание", n:"ДЗ №1 — строение органелл"}],
+     note:"Разобрали органеллы и их функции, начали работу с рисунками ЕГЭ по клеточному строению."},
+    {n:2, title:"Фотосинтез и энергетический обмен", date:"10 июля", status:"done",
+     materials:[{t:"Презентация", n:"Фотосинтез_ЕГЭ.pdf"},{t:"Видео", n:"Световая и темновая фазы"},{t:"Домашнее задание", n:"ДЗ №2 — задачи на АТФ"}],
+     note:"Разбор заданий 2 части на энергетический обмен."},
+    {n:3, title:"Основы генетики: моногибридное скрещивание", date:"17 июля", status:"done",
+     materials:[{t:"Презентация", n:"Генетика_основы.pdf"},{t:"Учебник", n:"Каменский, гл. 5"},{t:"Домашнее задание", n:"ДЗ №3 — задачи на скрещивание"}],
+     note:"Ввели решётку Пеннета, разобрали 6 задач."},
+    {n:4, title:"Генетика: законы Менделя", date:"31 июля", status:"upcoming",
+     materials:[{t:"Презентация", n:"Законы_Менделя.pdf"},{t:"Учебник", n:"Каменский, гл. 5–6"},{t:"Домашнее задание", n:"ДЗ №4 будет выдано после занятия"}],
+     note:"Разберём дигибридное и сцепленное наследование."},
+    {n:5, title:"Эволюционное учение", date:"07 авг", status:"upcoming",
+     materials:[{t:"Презентация", n:"Эволюция_Дарвин.pdf"},{t:"Учебник", n:"Каменский, гл. 8"}],
+     note:""},
+  ];
+
+  const materials = [
+    {title:"Клетка_вводная.pdf", type:"Презентация", topic:"Клетка", desc:"Строение клетки, органеллы и их функции"},
+    {title:"Каменский, гл. 2", type:"Учебник", topic:"Клетка", desc:"Глава про клеточную теорию и органоиды"},
+    {title:"Фотосинтез_ЕГЭ.pdf", type:"Презентация", topic:"Обмен веществ", desc:"Световая и темновая фаза, разбор заданий 2 части"},
+    {title:"Световая и темновая фазы", type:"Видео", topic:"Обмен веществ", desc:"15-минутный разбор с анимацией процессов"},
+    {title:"Генетика_основы.pdf", type:"Презентация", topic:"Генетика", desc:"Решётка Пеннета, моногибридное скрещивание"},
+    {title:"Законы_Менделя.pdf", type:"Презентация", topic:"Генетика", desc:"Дигибридное и сцепленное наследование"},
+    {title:"Каменский, гл. 5–6", type:"Учебник", topic:"Генетика", desc:"Основные законы наследственности"},
+    {title:"Эволюция_Дарвин.pdf", type:"Презентация", topic:"Эволюция", desc:"Движущие силы эволюции по Дарвину"},
+    {title:"ДЗ №3 — задачи на скрещивание", type:"Домашнее задание", topic:"Генетика", desc:"6 задач разного уровня сложности"},
+  ];
+
+  const tests = [
+    {title:"Клеточное строение", topic:"Клетка", q:10, time:15, best:"8/10"},
+    {title:"Основы генетики", topic:"Генетика", q:12, time:18, best:"6/10"},
+    {title:"Фотосинтез", topic:"Обмен веществ", q:8, time:12, best:"9/10"},
+    {title:"Законы Менделя", topic:"Генетика", q:12, time:18, best:"—"},
+    {title:"Эволюционное учение", topic:"Эволюция", q:10, time:15, best:"—"},
+    {title:"Экологические факторы", topic:"Экология", q:9, time:14, best:"7/9"},
+  ];
+
+  const mistakes = [
+    {q:"Какой тип взаимодействия генов проявляется при полимерии?", topic:"Генетика", date:"18 июля"},
+    {q:"Назовите фазу митоза, на которой хромосомы располагаются по экватору клетки", topic:"Клетка", date:"24 июля"},
+    {q:"Какой процесс обеспечивает независимое комбинирование признаков?", topic:"Генетика", date:"18 июля"},
+    {q:"Определите тип взаимодействия популяций «хищник — жертва»", topic:"Экология", date:"11 июля"},
+  ];
+
+  // ---------- Render ----------
+  function renderLessons(){
+    const el = document.getElementById('lessons-list');
+    el.innerHTML = lessons.map(l => `
+      <div class="lesson-item ${l.status==='done'?'done':''}" onclick="openLesson(${l.n})">
+        <div class="lesson-num">${l.status==='done' ? '✓' : l.n}</div>
+        <div class="lesson-body">
+          <div class="lesson-title">Занятие ${l.n}. ${l.title}</div>
+          <div class="lesson-meta">${l.date} · ${l.materials.length} материала(ов)</div>
+        </div>
+        <div class="lesson-status ${l.status==='done'?'status-done':'status-upcoming'}">${l.status==='done'?'Пройдено':'Предстоит'}</div>
+      </div>`).join('');
+  }
+
+  function openLesson(n){
+    const l = lessons.find(x => x.n === n);
+    document.getElementById('lesson-detail-body').innerHTML = `
+      <span class="tag ${l.status==='done'?'':'amber'}">${l.status==='done'?'Пройдено':'Предстоит'}</span>
+      <h1 style="margin-top:12px;">Занятие ${l.n}. ${l.title}</h1>
+      <div class="page-sub">${l.date}</div>
+      <div class="card">
+        <div class="card-title">Материалы занятия</div>
+        ${l.materials.map(m => `
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--border);">
+            <div><span class="tag">${m.t}</span> &nbsp; <span style="font-size:13.5px; font-weight:500;">${m.n}</span></div>
+            <button class="btn btn-outline" style="padding:6px 14px; font-size:12.5px;">Открыть</button>
+          </div>`).join('')}
+      </div>
+      ${l.note ? `<div class="card"><div class="card-title">Заметка репетитора</div><div style="font-size:13.5px;">${l.note}</div></div>` : ''}
+    `;
+    showView('lesson-detail');
+  }
+
+  function renderMaterials(){
+    document.getElementById('materials-body').innerHTML = materials.map(m => `
+      <tr>
+        <td><div class="mat-title">${m.title}</div></td>
+        <td><span class="tag">${m.type}</span></td>
+        <td>${m.topic}</td>
+        <td><div class="mat-desc">${m.desc}</div></td>
+      </tr>`).join('');
+  }
+
+  function renderTests(){
+    document.getElementById('tests-grid').innerHTML = tests.map(t => `
+      <div class="test-card">
+        <span class="tag amber">${t.topic}</span>
+        <h3>${t.title}</h3>
+        <div class="test-meta">${t.q} вопросов · ${t.time} мин · лучший результат: ${t.best}</div>
+        <button class="btn btn-amber" onclick="showView('test-run')">Начать тест</button>
+      </div>`).join('');
+  }
+
+  function renderMistakes(){
+    document.getElementById('mistakes-list').innerHTML = mistakes.map(m => `
+      <div class="mistake-item">
+        <div>
+          <div class="mistake-q">${m.q}</div>
+          <div class="mistake-meta"><span class="tag coral" style="margin-right:8px;">${m.topic}</span>ошибка от ${m.date}</div>
+        </div>
+        <button class="btn btn-outline">Повторить</button>
+      </div>`).join('');
+  }
+
+  renderLessons();
+  renderMaterials();
+  renderTests();
+  renderMistakes();
+</script>
+</body>
+</html>
