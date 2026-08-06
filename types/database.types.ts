@@ -151,41 +151,6 @@ export type Database = {
           },
         ]
       }
-      payments: {
-        Row: {
-          amount: number
-          created_at: string
-          id: string
-          paid_on: string | null
-          status: Database["public"]["Enums"]["payment_status"]
-          student_id: string
-        }
-        Insert: {
-          amount: number
-          created_at?: string
-          id?: string
-          paid_on?: string | null
-          status?: Database["public"]["Enums"]["payment_status"]
-          student_id: string
-        }
-        Update: {
-          amount?: number
-          created_at?: string
-          id?: string
-          paid_on?: string | null
-          status?: Database["public"]["Enums"]["payment_status"]
-          student_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payments_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       profiles: {
         Row: {
           created_at: string
@@ -792,6 +757,7 @@ export type Database = {
           position: number | null
           question_id: string | null
           reviewed_at: string | null
+          section_id: string | null
           student_id: string | null
           text: string | null
           topic_id: string | null
@@ -799,6 +765,13 @@ export type Database = {
           type: Database["public"]["Enums"]["question_type"] | null
         }
         Relationships: [
+          {
+            foreignKeyName: "questions_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "sections"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "questions_topic_id_fkey"
             columns: ["topic_id"]
@@ -878,7 +851,6 @@ export type Database = {
         | "video"
         | "homework"
         | "other"
-      payment_status: "paid" | "pending" | "overdue"
       question_type: "single_choice" | "open"
       user_role: "student" | "tutor"
     }
@@ -1016,7 +988,6 @@ export const Constants = {
       lesson_material_role: ["presentation", "extra"],
       lesson_status: ["upcoming", "completed"],
       material_type: ["presentation", "textbook", "video", "homework", "other"],
-      payment_status: ["paid", "pending", "overdue"],
       question_type: ["single_choice", "open"],
       user_role: ["student", "tutor"],
     },

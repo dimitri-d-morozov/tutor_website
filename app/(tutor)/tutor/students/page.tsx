@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/card";
 import { Cell, Row, Table } from "@/components/ui/table";
 import { Tag } from "@/components/ui/tag";
-import { ProgressBar } from "@/components/ui/progress-bar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { NewStudentButton } from "@/components/tutor/student-form";
 import { examTypeLabels, formatDateTime } from "@/lib/labels";
@@ -18,7 +17,6 @@ export default async function StudentsPage() {
   const [
     { data: students },
     { data: lessons },
-    { data: progress },
     { data: attempts },
     { data: courses },
     { data: courseTopics },
@@ -32,11 +30,8 @@ export default async function StudentsPage() {
       .order("full_name"),
     supabase
       .from("student_lessons")
-      .select("student_id, status, scheduled_at")
+      .select("student_id, topic_id, status, scheduled_at")
       .order("scheduled_at"),
-    supabase
-      .from("student_topic_progress")
-      .select("student_id, earned_points, max_points"),
     supabase
       .from("student_test_attempts")
       .select("student_id, status")
@@ -76,14 +71,19 @@ export default async function StudentsPage() {
     }
   }
 
-  /** Общий процент: доля набранных баллов по всем темам. */
-  const totals = new Map<string, { earned: number; max: number }>();
-  for (const p of progress ?? []) {
-    if (!p.student_id) continue;
-    const acc = totals.get(p.student_id) ?? { earned: 0, max: 0 };
-    acc.earned += Number(p.earned_points ?? 0);
-    acc.max += Number(p.max_points ?? 0);
-    totals.set(p.student_id, acc);
+  /** Темы плана ученика: сколько пройдено из скольких. */
+  const topicsByStudent = new Map<
+    string,
+    { total: Set<string>; done: Set<string> }
+  >();
+  for (const l of lessons ?? []) {
+    if (!l.topic_id) continue;
+    const acc =
+      topicsByStudent.get(l.student_id) ??
+      { total: new Set<string>(), done: new Set<string>() };
+    acc.total.add(l.topic_id);
+    if (l.status === "completed") acc.done.add(l.topic_id);
+    topicsByStudent.set(l.student_id, acc);
   }
 
   const weekAhead = now + 7 * 24 * 60 * 60 * 1000;
@@ -152,17 +152,13 @@ export default async function StudentsPage() {
                 "Ученик",
                 "Программа",
                 "Следующее занятие",
-                "Прогресс",
+                "Темы",
                 "Статус",
               ]}
             >
               {list.map((s) => {
                 const sp = s.student_profiles;
-                const acc = totals.get(s.id);
-                const percent =
-                  acc && acc.max > 0
-                    ? Math.round((acc.earned / acc.max) * 100)
-                    : null;
+                const topicAcc = topicsByStudent.get(s.id);
                 const paused = sp?.status === "paused";
 
                 return (
@@ -198,17 +194,14 @@ export default async function StudentsPage() {
                       {formatDateTime(nextLesson.get(s.id) ?? null)}
                     </Cell>
                     <Cell>
-                      {percent === null ? (
+                      {!topicAcc || topicAcc.total.size === 0 ? (
                         <span className="text-xs text-ink-faint">
                           нет данных
                         </span>
                       ) : (
-                        <div className="flex items-center gap-2">
-                          <ProgressBar value={percent} className="w-24" />
-                          <span className="text-xs font-medium">
-                            {percent}%
-                          </span>
-                        </div>
+                        <span className="text-sm font-medium">
+                          {topicAcc.done.size} из {topicAcc.total.size}
+                        </span>
                       )}
                     </Cell>
                     <Cell>

@@ -8,12 +8,7 @@ import { Tag } from "@/components/ui/tag";
 import { EditStudentButton } from "@/components/tutor/student-form";
 import { StudentPlan, type PlanLesson } from "@/components/tutor/student-plan";
 import { syncPlanWithCourse } from "../actions";
-import {
-  examTypeLabels,
-  formatDate,
-  formatDateTime,
-  paymentStatusLabels,
-} from "@/lib/labels";
+import { examTypeLabels, formatDateTime } from "@/lib/labels";
 import { isOvertime } from "@/lib/tests/attempt";
 
 /** Строка «подпись — значение». */
@@ -58,9 +53,7 @@ export default async function StudentDetailPage({
     { data: allMaterials },
     { data: allTests },
     { data: topics },
-    { data: payments },
     { data: attempts },
-    { data: progress },
   ] = await Promise.all([
     supabase
       .from("student_lessons")
@@ -80,11 +73,6 @@ export default async function StudentDetailPage({
       .select("id, title, code, section_id")
       .order("position"),
     supabase
-      .from("payments")
-      .select("id, paid_on, amount, status")
-      .eq("student_id", id)
-      .order("paid_on", { ascending: false }),
-    supabase
       .from("student_test_attempts")
       .select(
         "id, status, score, total, started_at, finished_at, test_templates(id, title, time_limit_min, topic_id)",
@@ -92,10 +80,6 @@ export default async function StudentDetailPage({
       .eq("student_id", id)
       .not("finished_at", "is", null)
       .order("finished_at", { ascending: false }),
-    supabase
-      .from("student_topic_progress")
-      .select("topic_id, earned_points, max_points, percent")
-      .eq("student_id", id),
   ]);
 
   const topicTitles = new Map((topics ?? []).map((t) => [t.id, t.title]));
@@ -146,7 +130,19 @@ export default async function StudentDetailPage({
   });
 
   const completed = lessons.filter((l) => l.status === "completed").length;
-  const lastPayment = (payments ?? [])[0];
+
+  // Темы плана — сколько пройдено, сколько осталось (не проценты, а счёт).
+  const planTopics: Array<{ id: string; done: boolean }> = [];
+  const seenTopics = new Set<string>();
+  for (const l of raw) {
+    if (!l.topic_id || seenTopics.has(l.topic_id)) continue;
+    seenTopics.add(l.topic_id);
+    planTopics.push({
+      id: l.topic_id,
+      done: raw.some((x) => x.topic_id === l.topic_id && x.status === "completed"),
+    });
+  }
+  const doneTopics = planTopics.filter((t) => t.done).length;
 
   // Попытки группируем по теме, внутри темы — по дате (свежие сверху; запрос уже
   // отсортирован). Так видно, где ученик буксует, а не просто «последние 10».
@@ -294,81 +290,30 @@ export default async function StudentDetailPage({
         </Card>
 
         <Card>
-          <CardTitle>Прогресс по темам</CardTitle>
-          {(progress ?? []).length === 0 ? (
+          <CardTitle>Темы</CardTitle>
+          {planTopics.length === 0 ? (
             <p className="text-sm text-ink-faint">
-              Появится после первых пройденных тестов
+              Появится, когда в план попадут темы
             </p>
           ) : (
-            (progress ?? []).map((p) => (
-              <InfoRow
-                key={p.topic_id}
-                label={
-                  p.topic_id ? topicTitles.get(p.topic_id) ?? "—" : "Без темы"
-                }
-              >
-                {p.percent ?? 0}%
-              </InfoRow>
-            ))
+            <div>
+              <div className="font-display text-2xl font-bold text-green-700">
+                {doneTopics} из {planTopics.length}
+              </div>
+              <div className="text-xs text-ink-soft">тем пройдено</div>
+            </div>
           )}
         </Card>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Card>
-          <CardTitle>Контакты</CardTitle>
-          <InfoRow label="Телефон">{sp?.phone ?? "—"}</InfoRow>
-          <InfoRow label="Мессенджер">{sp?.messenger ?? "—"}</InfoRow>
-          <InfoRow label="Родитель">{sp?.parent_name ?? "—"}</InfoRow>
-          <InfoRow label="Телефон родителя">{sp?.parent_phone ?? "—"}</InfoRow>
-        </Card>
-
-        <Card>
-          <CardTitle>Оплата</CardTitle>
-          <InfoRow label="Тариф">{sp?.tariff ?? "—"}</InfoRow>
-          <InfoRow label="Последний платёж">
-            {lastPayment ? (
-              <Tag
-                tone={
-                  lastPayment.status === "paid"
-                    ? "green"
-                    : lastPayment.status === "pending"
-                      ? "amber"
-                      : "coral"
-                }
-              >
-                {formatDate(lastPayment.paid_on)} ·{" "}
-                {paymentStatusLabels[lastPayment.status]}
-              </Tag>
-            ) : (
-              "—"
-            )}
-          </InfoRow>
-          {(payments ?? []).length > 0 && (
-            <>
-              <CardTitle className="mt-4">История платежей</CardTitle>
-              {(payments ?? []).map((p) => (
-                <InfoRow
-                  key={p.id}
-                  label={`${formatDate(p.paid_on)} · ${Number(p.amount).toLocaleString("ru-RU")} ₽`}
-                >
-                  <Tag
-                    tone={
-                      p.status === "paid"
-                        ? "green"
-                        : p.status === "pending"
-                          ? "amber"
-                          : "coral"
-                    }
-                  >
-                    {paymentStatusLabels[p.status]}
-                  </Tag>
-                </InfoRow>
-              ))}
-            </>
-          )}
-        </Card>
-      </div>
+      <Card>
+        <CardTitle>Контакты</CardTitle>
+        <InfoRow label="Телефон">{sp?.phone ?? "—"}</InfoRow>
+        <InfoRow label="Мессенджер">{sp?.messenger ?? "—"}</InfoRow>
+        <InfoRow label="Родитель">{sp?.parent_name ?? "—"}</InfoRow>
+        <InfoRow label="Телефон родителя">{sp?.parent_phone ?? "—"}</InfoRow>
+        <InfoRow label="Тариф">{sp?.tariff ?? "—"}</InfoRow>
+      </Card>
 
       {sp?.tutor_note && (
         <Card className="mt-4">

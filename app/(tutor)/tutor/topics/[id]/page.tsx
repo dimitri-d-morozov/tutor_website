@@ -11,6 +11,7 @@ import {
   attachTopicTest,
   detachTopicMaterial,
   detachTopicTest,
+  setTopicMaterialRole,
 } from "../actions";
 import { levelLabels, materialTypeLabels, plural } from "@/lib/labels";
 
@@ -19,23 +20,53 @@ function AttachedRow({
   children,
   action,
   hidden,
+  extra,
 }: {
   children: React.ReactNode;
   action: (formData: FormData) => void | Promise<void>;
   hidden: Record<string, string>;
+  /** Дополнительное действие слева от «Убрать» — например, смена роли. */
+  extra?: React.ReactNode;
 }) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-border py-3 last:border-0">
       <div className="flex items-center gap-3">{children}</div>
-      <form action={action}>
-        {Object.entries(hidden).map(([k, v]) => (
-          <input key={k} type="hidden" name={k} value={v} />
-        ))}
-        <Button type="submit" variant="ghost" className="text-coral">
-          Убрать
-        </Button>
-      </form>
+      <div className="flex flex-none items-center gap-1">
+        {extra}
+        <form action={action}>
+          {Object.entries(hidden).map(([k, v]) => (
+            <input key={k} type="hidden" name={k} value={v} />
+          ))}
+          <Button type="submit" variant="ghost" className="text-coral">
+            Убрать
+          </Button>
+        </form>
+      </div>
     </div>
+  );
+}
+
+/** Кнопка «перенести материал в другую секцию темы». */
+function MoveRoleButton({
+  topicId,
+  materialId,
+  role,
+  label,
+}: {
+  topicId: string;
+  materialId: string;
+  role: "presentation" | "extra";
+  label: string;
+}) {
+  return (
+    <form action={setTopicMaterialRole}>
+      <input type="hidden" name="topic_id" value={topicId} />
+      <input type="hidden" name="material_id" value={materialId} />
+      <input type="hidden" name="role" value={role} />
+      <Button type="submit" variant="ghost">
+        {label}
+      </Button>
+    </form>
   );
 }
 
@@ -191,7 +222,7 @@ export default async function TopicDetailPage({
             hiddenValue={topic.id}
             selectName="material_id"
             options={materialOptions}
-            withRole
+            role="presentation"
             emptyNote="Все материалы библиотеки уже прикреплены к этой теме. Загрузите новый в разделе «Материалы»."
           />
         </div>
@@ -203,6 +234,14 @@ export default async function TopicDetailPage({
               key={m.material_id}
               action={detachTopicMaterial}
               hidden={{ topic_id: topic.id, material_id: m.material_id }}
+              extra={
+                <MoveRoleButton
+                  topicId={topic.id}
+                  materialId={m.material_id}
+                  role="extra"
+                  label="В доп. материалы"
+                />
+              }
             >
               <Tag>{materialTypeLabels[m.materials.type]}</Tag>
               <span className="text-sm font-medium">{m.materials.title}</span>
@@ -225,7 +264,7 @@ export default async function TopicDetailPage({
             hiddenValue={topic.id}
             selectName="material_id"
             options={materialOptions}
-            withRole
+            role="extra"
             emptyNote="Все материалы библиотеки уже прикреплены к этой теме. Загрузите новый в разделе «Материалы»."
           />
         </div>
@@ -237,6 +276,14 @@ export default async function TopicDetailPage({
               key={m.material_id}
               action={detachTopicMaterial}
               hidden={{ topic_id: topic.id, material_id: m.material_id }}
+              extra={
+                <MoveRoleButton
+                  topicId={topic.id}
+                  materialId={m.material_id}
+                  role="presentation"
+                  label="Сделать презентацией"
+                />
+              }
             >
               <Tag>{materialTypeLabels[m.materials.type]}</Tag>
               <span className="text-sm font-medium">{m.materials.title}</span>

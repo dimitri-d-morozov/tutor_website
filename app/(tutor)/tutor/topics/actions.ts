@@ -167,6 +167,31 @@ export async function attachTopicMaterial(formData: FormData): Promise<void> {
   revalidatePath(`/tutor/topics/${topicId}`);
 }
 
+/**
+ * Перенести материал между «Презентация» и «Доп. материалы».
+ *
+ * Без этого материал, попавший не в ту секцию, приходилось бы отцеплять и
+ * прикреплять заново — а роль здесь единственное, что их различает.
+ */
+export async function setTopicMaterialRole(formData: FormData): Promise<void> {
+  await requireRole("tutor");
+  const topicId = optional(formData.get("topic_id"));
+  const materialId = optional(formData.get("material_id"));
+  const role = String(formData.get("role") ?? "");
+  if (!topicId || !materialId) return;
+  if (role !== "presentation" && role !== "extra") return;
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("topic_materials")
+    .update({ role: role as MaterialRole })
+    .eq("topic_id", topicId)
+    .eq("material_id", materialId);
+
+  if (error) throw new Error(`Не удалось изменить роль материала: ${error.message}`);
+  revalidatePath(`/tutor/topics/${topicId}`);
+}
+
 export async function detachTopicMaterial(formData: FormData): Promise<void> {
   await requireRole("tutor");
   const topicId = optional(formData.get("topic_id"));

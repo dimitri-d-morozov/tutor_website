@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
-import { Modal, ModalFooter } from "@/components/ui/modal";
+import { Modal, ModalFooter, submitThenClose } from "@/components/ui/modal";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { Tag } from "@/components/ui/tag";
 import {
@@ -416,7 +416,12 @@ export function StudentPlan({
           onClose={() => setEditing(null)}
           title={editing.title}
         >
-          <form action={updateStudentLesson} className="flex flex-col gap-4">
+          <form
+            action={submitThenClose(updateStudentLesson, () =>
+              setEditing(null),
+            )}
+            className="flex flex-col gap-4"
+          >
             <input type="hidden" name="lesson_id" value={editing.id} />
             <input type="hidden" name="student_id" value={studentId} />
 
@@ -454,9 +459,7 @@ export function StudentPlan({
               >
                 Отмена
               </Button>
-              <Button type="submit" onClick={() => setEditing(null)}>
-                Сохранить
-              </Button>
+              <Button type="submit">Сохранить</Button>
             </ModalFooter>
           </form>
         </Modal>
@@ -473,7 +476,10 @@ export function StudentPlan({
             Тем пока нет. Создайте их в разделе «Темы».
           </p>
         ) : (
-          <form action={addLessonForTopic} className="flex flex-col gap-4">
+          <form
+            action={submitThenClose(addLessonForTopic, () => setAddOpen(false))}
+            className="flex flex-col gap-4"
+          >
             <input type="hidden" name="student_id" value={studentId} />
             <input type="hidden" name="copy_content" value="true" />
 
@@ -510,9 +516,7 @@ export function StudentPlan({
               >
                 Отмена
               </Button>
-              <Button type="submit" onClick={() => setAddOpen(false)}>
-                Добавить
-              </Button>
+              <Button type="submit">Добавить</Button>
             </ModalFooter>
           </form>
         )}
@@ -545,7 +549,9 @@ export function StudentPlan({
               }
               return (
                 <form
-                  action={attachStudentMaterial}
+                  action={submitThenClose(attachStudentMaterial, () =>
+                    setAttachTo(null),
+                  )}
                   className="flex flex-col gap-4"
                 >
                   <input
@@ -577,9 +583,7 @@ export function StudentPlan({
                     >
                       Отмена
                     </Button>
-                    <Button type="submit" onClick={() => setAttachTo(null)}>
-                      Добавить
-                    </Button>
+                    <Button type="submit">Добавить</Button>
                   </ModalFooter>
                 </form>
               );
@@ -599,7 +603,12 @@ export function StudentPlan({
                 );
               }
               return (
-                <form action={attachStudentTest} className="flex flex-col gap-4">
+                <form
+                  action={submitThenClose(attachStudentTest, () =>
+                    setAttachTo(null),
+                  )}
+                  className="flex flex-col gap-4"
+                >
                   <input
                     type="hidden"
                     name="lesson_id"
@@ -623,9 +632,7 @@ export function StudentPlan({
                     >
                       Отмена
                     </Button>
-                    <Button type="submit" onClick={() => setAttachTo(null)}>
-                      Задать
-                    </Button>
+                    <Button type="submit">Задать</Button>
                   </ModalFooter>
                 </form>
               );

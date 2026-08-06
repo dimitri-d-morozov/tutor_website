@@ -49,12 +49,6 @@ export const questionTypeLabels: Record<Enums["question_type"], string> = {
   open: "Развёрнутый",
 };
 
-export const paymentStatusLabels: Record<Enums["payment_status"], string> = {
-  paid: "Оплачено",
-  pending: "Ожидает оплаты",
-  overdue: "Просрочено",
-};
-
 export const materialTypeOptions = Object.entries(materialTypeLabels).map(
   ([value, label]) => ({ value, label }),
 );

@@ -126,7 +126,10 @@ RPC `generate_plan_for_student(p_student, p_course, p_start, p_interval_days)` �
 ### Грабли PostgREST: неоднозначные связи
 После появления `topic_tests` между `test_templates` и `topics` стало **две** связи, и
 `topics(...)` в select падает с `Could not embed because more than one relationship was found`.
-Указывайте конкретный ключ: `topics!test_templates_topic_id_fkey(title)`.
+Указывайте конкретный ключ: `topics!test_templates_topic_id_fkey(title)`. То же самое у
+`materials` из-за `topic_materials` — `topics!materials_topic_id_fkey(title)`. Ошибка приходит
+в `error`, а `data` при этом `null`: страница, которая молча покажет пустой список, выглядит
+как «данных нет», хотя запрос упал. Такие чтения лучше проверять на `error` и падать.
 
 ## Структура проекта
 ```
@@ -201,5 +204,10 @@ npm run dev                    # http://localhost:3000
 - Каждое действие начинается с `requireRole("tutor")`. Service-role клиент
   (`lib/supabase/admin.ts`) — только после этой проверки, он сам ничего не проверяет.
 - Русские подписи enum-ов — в `lib/labels.ts`, чтобы формулировки не расползались по экранам.
+- **Модалку закрывать после отправки, а не в `onClick`.** Если модалка рендерится условно
+  (`{editing && <Modal …>}`), `setState` в обработчике клика размонтирует форму раньше, чем
+  браузер выполнит сабмит, — действие молча теряется, кнопка выглядит мёртвой. Обёртка
+  `submitThenClose(action, close)` из `components/ui/modal.tsx` закрывает окно после того,
+  как Server Action отработал.
 - Динамические страницы: `params` и `searchParams` — это Promise (конвенция Next 16).
 - Коммиты, форматирование, тесты — пока не зафиксированы, договоримся в процессе.

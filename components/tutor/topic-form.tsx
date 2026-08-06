@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Modal, ModalFooter } from "@/components/ui/modal";
+import { Modal, ModalFooter, submitThenClose } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { CheckboxGroup, Field, Input, Select } from "@/components/ui/field";
 import { levelOptions } from "@/lib/labels";
@@ -151,7 +151,11 @@ export function EditTopicButton({
 
 /**
  * Модалка «добавить из библиотеки»: одна и та же для материалов темы и для ДЗ.
- * `withRole` включает выбор роли — он нужен материалам, но не тестам.
+ *
+ * `role` задаётся кнопкой, а не выбирается в модалке: кнопка стоит внутри своей
+ * карточки («Презентация» / «Доп. материалы»), и раз репетитор нажал именно её —
+ * роль уже сказана. Выпадающий список со своим значением по умолчанию тут только
+ * вредил: материал уезжал в доп. материалы, хотя добавляли его как презентацию.
  */
 export function AttachButton({
   label,
@@ -161,7 +165,7 @@ export function AttachButton({
   hiddenValue,
   selectName,
   options,
-  withRole = false,
+  role,
   emptyNote,
 }: {
   label: string;
@@ -171,7 +175,7 @@ export function AttachButton({
   hiddenValue: string;
   selectName: string;
   options: Array<{ id: string; label: string }>;
-  withRole?: boolean;
+  role?: "presentation" | "extra";
   emptyNote: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -185,8 +189,12 @@ export function AttachButton({
         {options.length === 0 ? (
           <p className="text-sm text-ink-soft">{emptyNote}</p>
         ) : (
-          <form action={action} className="flex flex-col gap-4">
+          <form
+            action={submitThenClose(action, () => setOpen(false))}
+            className="flex flex-col gap-4"
+          >
             <input type="hidden" name={hiddenName} value={hiddenValue} />
+            {role && <input type="hidden" name="role" value={role} />}
 
             <Field label="Выберите из библиотеки">
               <Select name={selectName} required>
@@ -198,17 +206,6 @@ export function AttachButton({
               </Select>
             </Field>
 
-            {withRole && (
-              <Field label="Роль в занятии">
-                <Select name="role" defaultValue="extra">
-                  <option value="presentation">Презентация</option>
-                  <option value="extra">
-                    Доп. материалы для самостоятельного изучения
-                  </option>
-                </Select>
-              </Field>
-            )}
-
             <ModalFooter>
               <Button
                 type="button"
@@ -217,9 +214,7 @@ export function AttachButton({
               >
                 Отмена
               </Button>
-              <Button type="submit" onClick={() => setOpen(false)}>
-                Добавить
-              </Button>
+              <Button type="submit">Добавить</Button>
             </ModalFooter>
           </form>
         )}

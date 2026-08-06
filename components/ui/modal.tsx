@@ -59,3 +59,23 @@ export function Modal({
 export function ModalFooter({ children }: { children: React.ReactNode }) {
   return <div className="mt-6 flex justify-end gap-2.5">{children}</div>;
 }
+
+/**
+ * «Отправить, потом закрыть» для модалок, которые рендерятся условно
+ * (`{editing && <Modal …>}`).
+ *
+ * Закрывать такую модалку в `onClick` кнопки нельзя: React синхронно применит
+ * setState до того, как браузер выполнит сабмит, форма к этому моменту уже
+ * размонтирована — и действие молча теряется, кнопка выглядит мёртвой.
+ * Поэтому состояние меняем только после того, как действие отработало.
+ * Побочный плюс: модалка видна, пока запрос идёт.
+ */
+export function submitThenClose(
+  action: (formData: FormData) => void | Promise<void>,
+  close: () => void,
+) {
+  return async (formData: FormData) => {
+    await action(formData);
+    close();
+  };
+}
