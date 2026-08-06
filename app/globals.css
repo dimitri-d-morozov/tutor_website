@@ -1,26 +1,64 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+  Дизайн-токены «БиоПодготовка» — перенесены из HTML-мокапов (docs/mockups/*.html).
+  Палитра: зелёный/янтарный с «клеточными» акцентами. Шрифты: Source Serif 4 + Inter.
+*/
+@theme {
+  /* Фоны и поверхности */
+  --color-bg: #f7f5ee;
+  --color-surface: #ffffff;
+  --color-surface-muted: #eef1e7;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Текст */
+  --color-ink: #1b2119;
+  --color-ink-soft: #5b6459;
+  --color-ink-faint: #8b9385;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Зелёный (основной бренд) */
+  --color-green-900: #15332a;
+  --color-green-700: #1f5c43;
+  --color-green-500: #2e7d57;
+  --color-green-100: #e4eee6;
+
+  /* Янтарный (акцент/CTA) */
+  --color-amber-600: #c08a2e;
+  --color-amber-500: #d19b3f;
+  --color-amber-200: #f3e3b8;
+
+  /* Коралловый (ошибки/просрочка) */
+  --color-coral: #b5482f;
+  --color-coral-100: #f5e2dc;
+
+  /* Границы */
+  --color-border: #dcd6c5;
+
+  /* Радиусы */
+  --radius-lg: 20px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+
+  /* Шрифты (переменные задаются через next/font в layout.tsx) */
+  --font-display: var(--font-source-serif), Georgia, serif;
+  --font-body: var(--font-inter), system-ui, sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+/* Заголовки — серифный дисплейный шрифт */
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+}
+
+/* Шестиугольник — «клеточный» мотив бренда (класс .hex из мокапов) */
+@utility hex {
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
 }
