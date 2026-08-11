@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
       // чтобы вместо внятной ошибки не приходил обрыв запроса.
       bodySizeLimit: "52mb",
     },
+    // Next.js 16: отдельный лимит для middleware (по умолчанию 10mb).
+    middlewareClientMaxBodySize: "52mb",
   },
 };
 

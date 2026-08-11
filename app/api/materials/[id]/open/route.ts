@@ -45,9 +45,14 @@ export async function GET(
     );
   }
 
+  const pathEncoded = material.storage_path
+    .split('/')
+    .map(part => encodeURIComponent(part))
+    .join('/');
+
   const { data: signed, error } = await createAdminClient()
     .storage.from(MATERIALS_BUCKET)
-    .createSignedUrl(material.storage_path, 60);
+    .createSignedUrl(pathEncoded, 60);
 
   if (error || !signed) {
     return NextResponse.json(
