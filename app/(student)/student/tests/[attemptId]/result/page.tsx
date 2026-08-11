@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tag } from "@/components/ui/tag";
@@ -23,6 +24,19 @@ function asText(value: unknown): string {
   if (typeof value === "string") return value;
   if (value === null || value === undefined) return "";
   return JSON.stringify(value);
+}
+
+function asArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
 }
 
 export default async function ResultPage({
@@ -52,6 +66,22 @@ export default async function ResultPage({
     )
     .eq("attempt_id", attemptId)
     .order("position");
+
+  // Читаем correct_answer вопросов отдельно через admin клиент
+  // (обходим RLS, так как студент уже закончил тест и может видеть правильные ответы)
+  const questionIds = (rows ?? [])
+    .map((r) => r.question_id)
+    .filter((id): id is string => id !== null);
+  const { data: questionData } = questionIds.length > 0
+    ? await createAdminClient()
+        .from("questions")
+        .select("id, correct_answer")
+        .in("id", questionIds)
+    : { data: [] };
+
+  const correctAnswerMap = new Map(
+    (questionData ?? []).map((q) => [q.id, q.correct_answer]),
+  );
 
   const questions = rows ?? [];
   const pendingReview = attempt.status === "pending_review";
@@ -114,7 +144,10 @@ export default async function ResultPage({
         {questions.map((q, i) => {
           const options = parseOptions(q.options);
           const given = asText(q.given_answer);
+          const givenArray = asArray(q.given_answer);
+          const correctArray = asArray(correctAnswerMap.get(q.question_id ?? ""));
           const isOpen = q.type === "open";
+          const isMultiple = q.type === "multiple_choice";
           const awaiting = isOpen && q.points === null;
           const points = q.points ?? 0;
           const max = q.max_points ?? 1;
@@ -147,24 +180,30 @@ export default async function ResultPage({
                 </div>
               ) : (
                 <ul className="flex flex-col gap-1.5">
-                  {options.map((o) => {
-                    const chosen = given === o.id;
-                    return (
-                      <li
-                        key={o.id}
-                        className={
-                          chosen
-                            ? q.is_correct
-                              ? "rounded-sm bg-green-100 px-3 py-2 text-sm font-medium text-green-700"
-                              : "rounded-sm bg-coral-100 px-3 py-2 text-sm font-medium text-coral"
-                            : "px-3 py-2 text-sm text-ink-soft"
-                        }
-                      >
-                        {o.text}
-                        {chosen && (q.is_correct ? " — ваш ответ ✓" : " — ваш ответ ✗")}
-                      </li>
-                    );
-                  })}
+                    {options.map((o) => {
+                      const selected = isMultiple ? givenArray.includes(o.id) : given === o.id;
+                      const isCorrect = correctArray.includes(o.id);
+
+                      let className = "px-3 py-2 text-sm";
+                      if (selected && isCorrect) {
+                        className = "rounded-sm bg-green-100 px-3 py-2 text-sm font-medium text-green-700";
+                      } else if (selected && !isCorrect) {
+                        className = "rounded-sm bg-coral-100 px-3 py-2 text-sm font-medium text-coral";
+                      } else if (!selected && isCorrect && isMultiple) {
+                        className = "rounded-sm bg-amber-100 px-3 py-2 text-sm font-medium text-amber-700";
+                      } else {
+                        className = "px-3 py-2 text-sm text-ink-soft";
+                      }
+
+                      return (
+                        <li key={o.id} className={className}>
+                          {o.text}
+                          {selected && isCorrect && " ✓"}
+                          {selected && !isCorrect && " ✗"}
+                          {!selected && isCorrect && isMultiple && " (правильный ответ)"}
+                        </li>
+                      );
+                    })}
                 </ul>
               )}
 

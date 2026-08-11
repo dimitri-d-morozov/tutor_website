@@ -92,7 +92,7 @@ export function EditQuestionButton({
   question: {
     id: string;
     text: string;
-    type: "single_choice" | "open";
+    type: "single_choice" | "multiple_choice" | "open";
     correct_answer: unknown;
     explanation: string | null;
     max_points: number;
@@ -131,6 +131,27 @@ export function EditQuestionButton({
                   </option>
                 ))}
               </Select>
+            </Field>
+          ) : question.type === "multiple_choice" ? (
+            <Field label="Верные варианты" hint="Не редактируются — удалите и перезагрузите вопрос при необходимости">
+              <ul className="flex flex-col gap-1.5">
+                {options.map((o) => {
+                  const isCorrect = Array.isArray(question.correct_answer) && question.correct_answer.includes(o.id);
+                  return (
+                    <li
+                      key={o.id}
+                      className={
+                        isCorrect
+                          ? "rounded-sm bg-green-100 px-3 py-2 text-sm font-medium text-green-700"
+                          : "px-3 py-2 text-sm text-ink-soft"
+                      }
+                    >
+                      {o.id}. {o.text}
+                      {isCorrect && " ✓"}
+                    </li>
+                  );
+                })}
+              </ul>
             </Field>
           ) : (
             <Field

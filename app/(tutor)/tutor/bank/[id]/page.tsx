@@ -205,6 +205,25 @@ export default async function TestDetailPage({
                     );
                   })}
                 </ul>
+              ) : q.type === "multiple_choice" ? (
+                <ul className="flex flex-col gap-1.5">
+                  {options.map((o) => {
+                    const isCorrect = Array.isArray(correct) && correct.includes(o.id);
+                    return (
+                      <li
+                        key={o.id}
+                        className={
+                          isCorrect
+                            ? "rounded-sm bg-green-100 px-3 py-2 text-sm font-medium text-green-700"
+                            : "px-3 py-2 text-sm text-ink-soft"
+                        }
+                      >
+                        {o.id}. {o.text}
+                        {isCorrect && " ✓"}
+                      </li>
+                    );
+                  })}
+                </ul>
               ) : (
                 <div className="rounded-sm bg-surface-muted px-3 py-2 text-sm">
                   <span className="text-ink-faint">Эталон для проверки: </span>

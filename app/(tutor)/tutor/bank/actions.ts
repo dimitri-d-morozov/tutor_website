@@ -313,6 +313,7 @@ export async function createQuestion(
 
   const type = String(formData.get("type") ?? "single_choice") as
     | "single_choice"
+    | "multiple_choice"
     | "open";
   const points = Number(formData.get("max_points") ?? 1);
   const maxPoints = Number.isFinite(points)
@@ -330,9 +331,9 @@ export async function createQuestion(
   if (!test) return { error: "Тест не найден" };
 
   let options: Array<{ id: string; text: string }> | null = null;
-  let correctAnswer: string | null = null;
+  let correctAnswer: string | string[] | null = null;
 
-  if (type === "single_choice") {
+  if (type === "single_choice" || type === "multiple_choice") {
     // Пустые строки отбрасываем: репетитор мог добавить лишние поля вариантов.
     const texts = formData
       .getAll("option")
@@ -345,32 +346,60 @@ export async function createQuestion(
 
     options = texts.map((t, i) => ({ id: optionLetter(i), text: t }));
 
-    const correctIndex = Number(formData.get("correct_index") ?? 0);
-    if (
-      !Number.isInteger(correctIndex) ||
-      correctIndex < 0 ||
-      correctIndex >= texts.length
-    ) {
-      return { error: "Отметьте, какой вариант верный" };
+    if (type === "single_choice") {
+      const correctIndex = Number(formData.get("correct_index") ?? 0);
+      if (
+        !Number.isInteger(correctIndex) ||
+        correctIndex < 0 ||
+        correctIndex >= texts.length
+      ) {
+        return { error: "Отметьте, какой вариант верный" };
+      }
+      correctAnswer = optionLetter(correctIndex);
+    } else {
+      // multiple_choice: массив индексов верных вариантов
+      const indicesStr = formData.get("correct_indices");
+      let indices: number[] = [];
+      try {
+        indices = JSON.parse(String(indicesStr ?? "[]"));
+        if (!Array.isArray(indices)) {
+          throw new Error("not an array");
+        }
+      } catch {
+        return { error: "Ошибка при обработке верных ответов" };
+      }
+
+      if (indices.length === 0) {
+        return { error: "Отметьте минимум один верный вариант" };
+      }
+      if (indices.some((i) => !Number.isInteger(i) || i < 0 || i >= texts.length)) {
+        return { error: "Невалидный индекс верного варианта" };
+      }
+
+      correctAnswer = indices.map((i) => optionLetter(i));
     }
-    correctAnswer = optionLetter(correctIndex);
   } else {
     correctAnswer = optional(formData.get("correct_answer"));
   }
+
+  // Для multiple_choice correct_answer это JSON массив ID варианты.
+  const correctAnswerData = type === "multiple_choice" && Array.isArray(correctAnswer)
+    ? correctAnswer  // уже массив, Supabase распарсит как JSONB
+    : correctAnswer;
 
   const { data: created, error } = await supabase
     .from("questions")
     .insert({
       text,
-      type,
+      type: type as unknown as "single_choice" | "multiple_choice" | "open",
       max_points: maxPoints,
       options,
-      correct_answer: correctAnswer,
+      correct_answer: correctAnswerData,
       explanation: optional(formData.get("explanation")),
       topic_id: test.topic_id,
       section_id: test.section_id,
       levels: test.levels,
-    })
+    } as never)
     .select("id")
     .single();
 

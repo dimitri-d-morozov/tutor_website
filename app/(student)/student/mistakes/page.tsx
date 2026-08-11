@@ -207,7 +207,31 @@ export default async function MistakesPage() {
                                         </li>
                                       ))}
                                     </ul>
-                                  ) : (
+                                  ) : m.type === "multiple_choice" ? (() => {
+                                    let selectedIds: string[] = [];
+                                    try {
+                                      selectedIds = JSON.parse(given);
+                                    } catch {
+                                      selectedIds = [];
+                                    }
+                                    return (
+                                      <ul className="flex flex-col gap-1">
+                                        {options.map((o) => (
+                                          <li
+                                            key={o.id}
+                                            className={
+                                              selectedIds.includes(o.id)
+                                                ? "rounded-sm bg-coral-100 px-3 py-1.5 text-sm text-coral"
+                                                : "px-3 py-1.5 text-sm text-ink-soft"
+                                            }
+                                          >
+                                            {o.text}
+                                            {selectedIds.includes(o.id) && " — вы выбрали"}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    );
+                                  })() : (
                                     <div className="rounded-sm bg-surface-muted px-3 py-2 text-sm">
                                       <span className="text-ink-faint">Ваш ответ: </span>
                                       {given || "без ответа"}

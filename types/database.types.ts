@@ -851,7 +851,7 @@ export type Database = {
         | "video"
         | "homework"
         | "other"
-      question_type: "single_choice" | "open"
+      question_type: "single_choice" | "open" | "multiple_choice"
       user_role: "student" | "tutor"
     }
     CompositeTypes: {
@@ -988,7 +988,7 @@ export const Constants = {
       lesson_material_role: ["presentation", "extra"],
       lesson_status: ["upcoming", "completed"],
       material_type: ["presentation", "textbook", "video", "homework", "other"],
-      question_type: ["single_choice", "open"],
+      question_type: ["single_choice", "open", "multiple_choice"],
       user_role: ["student", "tutor"],
     },
   },

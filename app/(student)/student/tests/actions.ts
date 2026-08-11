@@ -43,11 +43,24 @@ export async function saveAnswer(formData: FormData): Promise<void> {
   if (!attemptId || !questionId) return;
 
   const supabase = await createClient();
+
+  // Для multiple_choice ответ приходит как JSON строка типа '["a","b"]',
+  // нужно распарсить в массив для передачи в RPC как JSONB.
+  let parsedAnswer: unknown = answer;
+  if (answer.startsWith("[")) {
+    try {
+      parsedAnswer = JSON.parse(answer);
+    } catch {
+      parsedAnswer = answer;
+    }
+  }
+
   const { error } = await supabase.rpc("save_answer", {
     p_attempt: attemptId,
     p_question: questionId,
-    // given_answer — JSONB: id варианта («a») либо текст развёрнутого ответа.
-    p_answer: answer,
+    // given_answer — JSONB: id варианта («a») либо массив id вариантов для multiple_choice,
+    // либо текст развёрнутого ответа.
+    p_answer: parsedAnswer,
   });
 
   if (error) throw new Error(error.message);
@@ -75,10 +88,20 @@ export async function finishTest(formData: FormData): Promise<void> {
   const answer = String(formData.get("answer") ?? "").trim();
 
   if (questionId !== "" && answer !== "") {
+    // Для multiple_choice распарсить JSON
+    let parsedAnswer: unknown = answer;
+    if (answer.startsWith("[")) {
+      try {
+        parsedAnswer = JSON.parse(answer);
+      } catch {
+        parsedAnswer = answer;
+      }
+    }
+
     const { error: saveError } = await supabase.rpc("save_answer", {
       p_attempt: attemptId,
       p_question: questionId,
-      p_answer: answer,
+      p_answer: parsedAnswer,
     });
     // Ответ не сохранился — сдавать нельзя, иначе он потеряется молча.
     if (saveError) throw new Error(saveError.message);

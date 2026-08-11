@@ -60,7 +60,7 @@ export default async function AttemptPage({
       questionId: r.question_id!,
       position: r.position ?? 0,
       text: r.text ?? "",
-      type: r.type === "open" ? "open" : "single_choice",
+      type: r.type === "open" ? "open" : r.type === "multiple_choice" ? "multiple_choice" : "single_choice",
       maxPoints: r.max_points ?? 1,
       options: parseOptions(r.options),
       savedAnswer: asText(r.given_answer),

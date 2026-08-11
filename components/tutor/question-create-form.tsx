@@ -28,10 +28,12 @@ const initialState: QuestionFormState = { error: null };
  */
 export function AddQuestionButton({ testId }: { testId: string }) {
   const [open, setOpen] = useState(false);
-  const [type, setType] = useState<"single_choice" | "open">("single_choice");
+  const [type, setType] = useState<"single_choice" | "multiple_choice" | "open">("single_choice");
   // Минимум два варианта: вопрос с одним вариантом ответа бессмыслен.
   const [options, setOptions] = useState(["", ""]);
-  const [correct, setCorrect] = useState(0);
+  // Для single_choice: индекс верного варианта
+  // Для multiple_choice: массив индексов верных вариантов
+  const [correct, setCorrect] = useState<number | number[]>(0);
   const [state, formAction, pending] = useActionState(
     createQuestion,
     initialState,
@@ -76,11 +78,15 @@ export function AddQuestionButton({ testId }: { testId: string }) {
           <Field label="Тип вопроса">
             <Select
               value={type}
-              onChange={(e) =>
-                setType(e.target.value as "single_choice" | "open")
-              }
+              onChange={(e) => {
+                const newType = e.target.value as "single_choice" | "multiple_choice" | "open";
+                setType(newType);
+                // Сброс верных ответов при смене типа
+                setCorrect(newType === "multiple_choice" ? [] : 0);
+              }}
             >
               <option value="single_choice">Один верный ответ</option>
+              <option value="multiple_choice">Несколько верных ответов</option>
               <option value="open">Развёрнутый — проверяете вы</option>
             </Select>
           </Field>
@@ -94,51 +100,95 @@ export function AddQuestionButton({ testId }: { testId: string }) {
             />
           </Field>
 
-          {type === "single_choice" ? (
+          {(type === "single_choice" || type === "multiple_choice") ? (
             <Field
               label="Варианты ответа"
-              hint="Отметьте кружком верный вариант"
+              hint={type === "single_choice"
+                ? "Отметьте кружком верный вариант"
+                : "Отметьте галочками все верные варианты"}
             >
-              <input type="hidden" name="correct_index" value={correct} />
+              {type === "single_choice" ? (
+                <input type="hidden" name="correct_index" value={Number(correct)} />
+              ) : (
+                <input type="hidden" name="correct_indices" value={JSON.stringify(correct)} />
+              )}
               <div className="flex flex-col gap-2">
-                {options.map((value, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setCorrect(i)}
-                      title="Отметить как верный"
-                      className={cn(
-                        "h-5 w-5 flex-none rounded-full border-2",
-                        correct === i
-                          ? "border-green-700 bg-green-700"
-                          : "border-border hover:border-green-500",
+                {options.map((value, i) => {
+                  const isCorrect = type === "single_choice"
+                    ? correct === i
+                    : Array.isArray(correct) && correct.includes(i);
+
+                  return (
+                    <div key={i} className="flex items-center gap-2">
+                      {type === "single_choice" ? (
+                        <button
+                          type="button"
+                          onClick={() => setCorrect(i)}
+                          title="Отметить как верный"
+                          className={cn(
+                            "h-5 w-5 flex-none rounded-full border-2",
+                            isCorrect
+                              ? "border-green-700 bg-green-700"
+                              : "border-border hover:border-green-500",
+                          )}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!Array.isArray(correct)) return;
+                            setCorrect(
+                              correct.includes(i)
+                                ? correct.filter((idx) => idx !== i)
+                                : [...correct, i].sort((a, b) => a - b)
+                            );
+                          }}
+                          title="Отметить как верный"
+                          className={cn(
+                            "h-5 w-5 flex-none border-2",
+                            isCorrect
+                              ? "border-green-700 bg-green-700"
+                              : "border-border hover:border-green-500",
+                          )}
+                        />
                       )}
-                    />
-                    <Input
-                      name="option"
-                      value={value}
-                      onChange={(e) =>
-                        setOptions((prev) =>
-                          prev.map((v, j) => (j === i ? e.target.value : v)),
-                        )
-                      }
-                      placeholder={`Вариант ${i + 1}`}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="text-coral"
-                      disabled={options.length <= 2}
-                      onClick={() => {
-                        setOptions((prev) => prev.filter((_, j) => j !== i));
-                        // Верный вариант мог сдвинуться или исчезнуть.
-                        setCorrect((c) => (c > i ? c - 1 : c === i ? 0 : c));
-                      }}
-                    >
-                      ✕
-                    </Button>
-                  </div>
-                ))}
+                      <Input
+                        name="option"
+                        value={value}
+                        onChange={(e) =>
+                          setOptions((prev) =>
+                            prev.map((v, j) => (j === i ? e.target.value : v)),
+                          )
+                        }
+                        placeholder={`Вариант ${i + 1}`}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="text-coral"
+                        disabled={options.length <= 2}
+                        onClick={() => {
+                          setOptions((prev) => prev.filter((_, j) => j !== i));
+                          // Верный вариант мог сдвинуться или исчезнуть.
+                          if (type === "single_choice") {
+                            setCorrect((c) => {
+                              const idx = c as number;
+                              return idx > i ? idx - 1 : idx === i ? 0 : idx;
+                            });
+                          } else if (Array.isArray(correct)) {
+                            setCorrect(
+                              correct
+                                .filter((idx) => idx !== i)
+                                .map((idx) => idx > i ? idx - 1 : idx)
+                            );
+                          }
+                        }}
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
               <Button
                 type="button"
@@ -167,7 +217,9 @@ export function AddQuestionButton({ testId }: { testId: string }) {
             hint={
               type === "open"
                 ? "Сможете поставить частичный балл при проверке"
-                : "Начисляется целиком либо не начисляется"
+                : type === "multiple_choice"
+                  ? "При одной ошибке — половина баллов, при двух и более — 0"
+                  : "Начисляется целиком либо не начисляется"
             }
           >
             {/* key заставляет пересоздать поле при смене типа — иначе
@@ -178,7 +230,7 @@ export function AddQuestionButton({ testId }: { testId: string }) {
               name="max_points"
               min={1}
               max={10}
-              defaultValue={type === "open" ? 2 : 1}
+              defaultValue={type === "open" || type === "multiple_choice" ? 2 : 1}
             />
           </Field>
 

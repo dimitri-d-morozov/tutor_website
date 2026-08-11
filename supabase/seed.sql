@@ -97,7 +97,13 @@ insert into questions (id, text, topic_id, section_id, levels, type, options, co
   ('d0000000-0000-0000-0000-000000000002', 'Сформулируйте первый закон Менделя.',
    'a0000000-0000-0000-0000-000000000002',
    (select id from sections where title = 'Генетика'), '{ege}', 'open',
-   null, null, 'Закон единообразия гибридов первого поколения.', 2);
+   null, null, 'Закон единообразия гибридов первого поколения.', 2),
+  -- multiple_choice вопрос для тестирования
+  ('d0000000-0000-0000-0000-000000000004', 'Какие структуры входят в состав эукариотической клетки?',
+   'a0000000-0000-0000-0000-000000000001',
+   (select id from sections where title = 'Цитология'), '{oge,ege}', 'multiple_choice',
+   '[{"id":"a","text":"Ядро"},{"id":"b","text":"Рибосомы"},{"id":"c","text":"Аппарат Гольджи"},{"id":"d","text":"Капсула"}]',
+   '["a","b","c"]', 'Ядро, рибосомы и аппарат Гольджи — органоиды эукариот. Капсула есть только у бактерий.', 2);
 
 insert into test_templates (id, title, topic_id, section_id, levels, time_limit_min) values
   ('e0000000-0000-0000-0000-000000000001', 'Клеточное строение',
@@ -106,7 +112,8 @@ insert into test_templates (id, title, topic_id, section_id, levels, time_limit_
 
 insert into test_template_questions (test_template_id, question_id, position) values
   ('e0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001', 1),
-  ('e0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000003', 2);
+  ('e0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000004', 2),
+  ('e0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000003', 3);
 
 -- ─── Содержимое тем: презентация, доп. материалы, ДЗ ─────────────────────────
 -- Материалы висят на теме, а не на занятии: тема — то, что не меняется, а число
@@ -187,5 +194,40 @@ insert into student_test_attempts (id, student_id, test_template_id, student_les
 
 insert into student_answers (attempt_id, question_id, given_answer, points, is_correct) values
   ('a1000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001', '"a"', 1, true),
+  ('a1000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000004', '["a","b","c"]', 2, true),
   ('a1000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000003',
    '"Митохондрии производят энергию для клетки"', null, null);
+
+-- Дополнительные попытки Пети для тестирования multiple_choice подсчёта баллов
+-- Попытка 1: все верно → 2 балла
+insert into student_test_attempts (id, student_id, test_template_id, started_at, finished_at, status, score, total) values
+  ('a2000000-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333',
+   'e0000000-0000-0000-0000-000000000001', now() - interval '2 days', now() - interval '2 days' + interval '8 minutes',
+   'completed', 1, 5);
+
+insert into student_answers (attempt_id, question_id, given_answer, points, is_correct) values
+  ('a2000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001', '"a"', 1, true),
+  ('a2000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000004', '["a","b","c"]', 2, true),
+  ('a2000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000003', '"Синтез энергии"', null, null);
+
+-- Попытка 2: одна ошибка (пропущен один верный) → 1 балл
+insert into student_test_attempts (id, student_id, test_template_id, started_at, finished_at, status, score, total) values
+  ('a2000000-0000-0000-0000-000000000002', '33333333-3333-3333-3333-333333333333',
+   'e0000000-0000-0000-0000-000000000001', now() - interval '1 days', now() - interval '1 days' + interval '8 minutes',
+   'completed', 1, 5);
+
+insert into student_answers (attempt_id, question_id, given_answer, points, is_correct) values
+  ('a2000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000001', '"a"', 1, true),
+  ('a2000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000004', '["a","b"]', 1, false),
+  ('a2000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000003', '"Синтез АТФ"', null, null);
+
+-- Попытка 3: две ошибки (пропущены два верных) → 0 баллов
+insert into student_test_attempts (id, student_id, test_template_id, started_at, finished_at, status, score, total) values
+  ('a2000000-0000-0000-0000-000000000003', '33333333-3333-3333-3333-333333333333',
+   'e0000000-0000-0000-0000-000000000001', now() - interval '6 hours', now() - interval '6 hours' + interval '8 minutes',
+   'completed', 1, 5);
+
+insert into student_answers (attempt_id, question_id, given_answer, points, is_correct) values
+  ('a2000000-0000-0000-0000-000000000003', 'd0000000-0000-0000-0000-000000000001', '"a"', 1, true),
+  ('a2000000-0000-0000-0000-000000000003', 'd0000000-0000-0000-0000-000000000004', '["a"]', 0, false),
+  ('a2000000-0000-0000-0000-000000000003', 'd0000000-0000-0000-0000-000000000003', '"Энергия"', null, null);

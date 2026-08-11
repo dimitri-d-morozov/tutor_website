@@ -49,6 +49,27 @@ const singleChoiceSchema = z.object({
   explanation: z.string().trim().optional(),
 });
 
+const multipleChoiceSchema = z.object({
+  text: questionTextSchema,
+  type: z.literal("multiple_choice"),
+  points: pointsSchema,
+  options: z
+    .array(z.string().trim().min(1, "вариант ответа не может быть пустым"), {
+      error: "нужно поле options со списком вариантов ответа",
+    })
+    .min(2, "нужно минимум 2 варианта ответа"),
+  correct: z
+    .array(
+      z
+        .number({ error: "номер варианта должен быть число" })
+        .int("номер варианта должен быть целым числом")
+        .min(1, "нумерация вариантов начинается с 1"),
+      { error: "для multiple_choice нужно поле correct — массив номеров верных вариантов ([1, 3])" }
+    )
+    .min(1, "нужно минимум один верный вариант"),
+  explanation: z.string().trim().optional(),
+});
+
 const openSchema = z.object({
   text: questionTextSchema,
   type: z.literal("open"),
@@ -58,8 +79,8 @@ const openSchema = z.object({
 });
 
 const questionSchema = z
-  .discriminatedUnion("type", [singleChoiceSchema, openSchema], {
-    error: 'поле type должно быть "single_choice" или "open"',
+  .discriminatedUnion("type", [singleChoiceSchema, multipleChoiceSchema, openSchema], {
+    error: 'поле type должно быть "single_choice", "multiple_choice" или "open"',
   })
   // correct должен указывать на существующий вариант — иначе у теста нет верного
   // ответа, и обнаружить это уже после сохранения было бы неприятно.
@@ -71,6 +92,16 @@ const questionSchema = z
         message: `correct = ${q.correct}, а вариантов всего ${q.options.length}`,
         path: ["correct"],
       });
+    }
+    if (q.type === "multiple_choice") {
+      const invalid = (q.correct as number[]).filter((c) => c < 1 || c > q.options.length);
+      if (invalid.length > 0) {
+        ctx.addIssue({
+          code: "custom",
+          message: `correct содержит невалидные номера: ${invalid.join(", ")} (вариантов всего ${q.options.length})`,
+          path: ["correct"],
+        });
+      }
     }
   });
 
@@ -169,6 +200,19 @@ export function toDbPayload(
             })),
             // correct — номер с 1, в БД храним id варианта.
             correct_answer: OPTION_IDS[q.correct - 1],
+            explanation: q.explanation ?? null,
+          }
+        : q.type === "multiple_choice"
+        ? {
+            text: q.text,
+            type: "multiple_choice",
+            max_points: q.points ?? 1,
+            options: q.options.map((text, i) => ({
+              id: OPTION_IDS[i],
+              text,
+            })),
+            // correct — массив номеров с 1, в БД храним массив letter id: ["a", "c"]
+            correct_answer: (q.correct as number[]).map((i) => OPTION_IDS[i - 1]),
             explanation: q.explanation ?? null,
           }
         : {

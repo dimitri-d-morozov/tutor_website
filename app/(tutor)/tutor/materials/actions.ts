@@ -93,7 +93,12 @@ export async function createMaterial(
     };
   }
 
-  const path = `${created.id}/${file.name}`;
+  // Сохраняем файл с безопасным именем (только расширение от оригинала)
+  // чтобы избежать проблем с кириллицей и спецсимволами в Supabase Storage
+  const ext = file.name.split('.').pop() || 'bin';
+  const safeName = `${created.id}.${ext}`;
+  const path = `${created.id}/${safeName}`;
+
   const admin = createAdminClient();
   const { error: uploadError } = await admin.storage
     .from(MATERIALS_BUCKET)

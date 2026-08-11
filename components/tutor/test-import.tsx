@@ -151,6 +151,25 @@ export function TestImport() {
                       );
                     })}
                   </ul>
+                ) : q.type === "multiple_choice" ? (
+                  <ul className="flex flex-col gap-1.5">
+                    {q.options.map((opt, oi) => {
+                      const isCorrect = (q.correct as number[]).includes(oi + 1);
+                      return (
+                        <li
+                          key={oi}
+                          className={
+                            isCorrect
+                              ? "rounded-sm bg-green-100 px-3 py-2 text-sm font-medium text-green-700"
+                              : "px-3 py-2 text-sm text-ink-soft"
+                          }
+                        >
+                          {optionLetter(oi)}. {opt}
+                          {isCorrect && " ✓"}
+                        </li>
+                      );
+                    })}
+                  </ul>
                 ) : (
                   q.answer && (
                     <div className="rounded-sm bg-surface-muted px-3 py-2 text-sm">

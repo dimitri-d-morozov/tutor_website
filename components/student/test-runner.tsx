@@ -17,7 +17,7 @@ export type RunnerQuestion = {
   questionId: string;
   position: number;
   text: string;
-  type: "single_choice" | "open";
+  type: "single_choice" | "multiple_choice" | "open";
   maxPoints: number;
   options: Array<{ id: string; text: string }>;
   /** Уже сохранённый ответ — чтобы вернуться и продолжить. */
@@ -151,7 +151,11 @@ export function TestRunner({
             Вопрос {index + 1} из {questions.length}
           </span>
           <Tag tone={current.type === "open" ? "coral" : "green"}>
-            {current.type === "open" ? "Развёрнутый" : "Один ответ"}
+            {current.type === "open"
+              ? "Развёрнутый"
+              : current.type === "multiple_choice"
+                ? "Несколько ответов"
+                : "Один ответ"}
           </Tag>
           <span>
             {current.maxPoints}{" "}
@@ -187,6 +191,62 @@ export function TestRunner({
                   <span
                     className={cn(
                       "h-4 w-4 flex-none rounded-full border-2",
+                      chosen ? "border-green-700 bg-green-700" : "border-border",
+                    )}
+                  />
+                  {o.text}
+                </button>
+              );
+            })}
+          </div>
+        ) : current.type === "multiple_choice" ? (
+          <div className="flex flex-col gap-2.5">
+            {current.options.map((o) => {
+              let chosen = false;
+              try {
+                const stored = answers[current.questionId];
+                if (stored) {
+                  const selected = JSON.parse(stored) as string[];
+                  chosen = selected.includes(o.id);
+                }
+              } catch {
+                // Некорректное значение, пропускаем
+              }
+
+              return (
+                <button
+                  key={o.id}
+                  type="button"
+                  onClick={() => {
+                    setAnswers((prev) => {
+                      const stored = prev[current.questionId] ?? "[]";
+                      let selected: string[] = [];
+                      try {
+                        selected = JSON.parse(stored);
+                      } catch {
+                        selected = [];
+                      }
+
+                      const updated = chosen
+                        ? selected.filter((id) => id !== o.id)
+                        : [...selected, o.id];
+
+                      return {
+                        ...prev,
+                        [current.questionId]: JSON.stringify(updated),
+                      };
+                    });
+                  }}
+                  className={cn(
+                    "flex items-center gap-3 rounded-md border px-4 py-3.5 text-left text-sm transition-colors",
+                    chosen
+                      ? "border-green-500 bg-green-100"
+                      : "border-border hover:border-green-500 hover:bg-green-100",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "h-4 w-4 flex-none border-2",
                       chosen ? "border-green-700 bg-green-700" : "border-border",
                     )}
                   />

@@ -46,6 +46,7 @@ export const lessonStatusLabels: Record<Enums["lesson_status"], string> = {
 
 export const questionTypeLabels: Record<Enums["question_type"], string> = {
   single_choice: "Один ответ",
+  multiple_choice: "Несколько ответов",
   open: "Развёрнутый",
 };
 
