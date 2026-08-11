@@ -46,7 +46,7 @@ export async function saveAnswer(formData: FormData): Promise<void> {
 
   // Для multiple_choice ответ приходит как JSON строка типа '["a","b"]',
   // нужно распарсить в массив для передачи в RPC как JSONB.
-  let parsedAnswer: unknown = answer;
+  let parsedAnswer: any = answer;
   if (answer.startsWith("[")) {
     try {
       parsedAnswer = JSON.parse(answer);
@@ -89,7 +89,7 @@ export async function finishTest(formData: FormData): Promise<void> {
 
   if (questionId !== "" && answer !== "") {
     // Для multiple_choice распарсить JSON
-    let parsedAnswer: unknown = answer;
+    let parsedAnswer: any = answer;
     if (answer.startsWith("[")) {
       try {
         parsedAnswer = JSON.parse(answer);
