@@ -38,9 +38,14 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isLogin = path === "/login";
 
-  // Не авторизован — пускаем только на /login.
+  // Политика обработки персональных данных обязана быть доступна без входа:
+  // 152-ФЗ ст. 18.1 ч.2 требует «неограниченного доступа» к ней, а её должен
+  // прочитать в том числе родитель, у которого аккаунта нет и не будет.
+  const isPublic = isLogin || path === "/privacy";
+
+  // Не авторизован — пускаем только на публичные страницы.
   if (!user) {
-    if (isLogin) return response;
+    if (isPublic) return response;
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
@@ -56,7 +61,7 @@ export async function middleware(request: NextRequest) {
   // а middleware отправит обратно на дашборд — получится цикл редиректов.
   // Поэтому показываем страницу входа с явной ошибкой.
   if (!profile) {
-    if (isLogin) return response;
+    if (isPublic) return response;
     return NextResponse.redirect(new URL("/login?error=no-profile", request.url));
   }
 

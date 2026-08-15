@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { login, type LoginState } from "./actions";
 import { BrandMark } from "@/components/ui/brand-mark";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,15 @@ export function LoginForm({ notice }: { notice?: string }) {
             {pending ? "Входим…" : "Войти"}
           </Button>
         </form>
+
+        {/* 152-ФЗ ст. 18.1 ч.2: политика должна быть общедоступна. Страница
+            входа — единственный экран, который видит неавторизованный
+            посетитель, поэтому ссылка живёт здесь. */}
+        <p className="mt-6 border-t border-border pt-4 text-center text-xs text-ink-faint">
+          <Link href="/privacy" className="hover:underline">
+            Политика обработки персональных данных
+          </Link>
+        </p>
       </div>
     </div>
   );
