@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import {
   createStudent,
+  resetStudentPassword,
   updateStudent,
+  type PasswordResetState,
   type StudentFormState,
 } from "@/app/(tutor)/tutor/students/actions";
 import { examTypeLabels } from "@/lib/labels";
@@ -179,6 +181,104 @@ export function NewStudentButton({ courses }: { courses: Course[] }) {
         </form>
       </Modal>
     </>
+  );
+}
+
+const initialReset: PasswordResetState = { error: null, done: false };
+
+/**
+ * Смена пароля ученику.
+ *
+ * Пароль задаёт репетитор и диктует ученику — тот же путь, что при создании
+ * аккаунта: писем система не шлёт. Старый пароль не показываем и показать не
+ * можем — в базе только его хеш.
+ */
+export function ResetPasswordButton({
+  studentId,
+  studentName,
+}: {
+  studentId: string;
+  studentName: string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <Button variant="ghost" onClick={() => setOpen(true)}>
+        Сменить пароль
+      </Button>
+
+      <Modal open={open} onClose={() => setOpen(false)} title="Новый пароль">
+        {/* Форма монтируется заново при каждом открытии: useActionState живёт
+            столько же, сколько компонент, и без этого «Пароль изменён» от
+            прошлого раза висел бы в свежем окне как будто это новый результат. */}
+        {open && (
+          <ResetPasswordForm
+            studentId={studentId}
+            studentName={studentName}
+            onClose={() => setOpen(false)}
+          />
+        )}
+      </Modal>
+    </>
+  );
+}
+
+function ResetPasswordForm({
+  studentId,
+  studentName,
+  onClose,
+}: {
+  studentId: string;
+  studentName: string;
+  onClose: () => void;
+}) {
+  const [state, formAction, pending] = useActionState(
+    resetStudentPassword,
+    initialReset,
+  );
+
+  return (
+    <form action={formAction} className="flex flex-col gap-4">
+      <input type="hidden" name="id" value={studentId} />
+
+      <p className="text-sm text-ink-soft">
+        Новый пароль для{" "}
+        <span className="font-medium text-ink">{studentName}</span>. Старый
+        посмотреть нельзя — в базе хранится только его хеш.
+      </p>
+
+      <Field
+        label="Пароль"
+        hint="Продиктуйте ученику: писем система не отправляет"
+      >
+        <Input
+          name="password"
+          // type="text", а не "password": репетитор диктует пароль вслух,
+          // и ему нужно видеть, что он набрал.
+          type="text"
+          required
+          minLength={6}
+          placeholder="минимум 6 символов"
+        />
+      </Field>
+
+      {state.error && <p className="text-sm text-coral">{state.error}</p>}
+      {state.done && (
+        <p className="rounded-sm bg-green-100 px-3 py-2 text-sm text-green-700">
+          Пароль изменён. Старый больше не работает — передайте ученику новый.
+        </p>
+      )}
+
+      <ModalFooter>
+        <Button type="button" variant="outline" onClick={onClose}>
+          {state.done ? "Закрыть" : "Отмена"}
+        </Button>
+        <Button type="submit" disabled={pending}>
+          {pending ? "Меняем…" : "Сменить пароль"}
+        </Button>
+      </ModalFooter>
+    </form>
   );
 }
 

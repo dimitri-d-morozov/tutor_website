@@ -5,7 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Tag } from "@/components/ui/tag";
-import { EditStudentButton } from "@/components/tutor/student-form";
+import {
+  EditStudentButton,
+  ResetPasswordButton,
+} from "@/components/tutor/student-form";
 import { StudentPlan, type PlanLesson } from "@/components/tutor/student-plan";
 import { syncPlanWithCourse } from "../actions";
 import { examTypeLabels, formatDateTime } from "@/lib/labels";
@@ -200,6 +203,10 @@ export default async function StudentDetailPage({
               Дополнить план по программе
             </Button>
           </form>
+          <ResetPasswordButton
+            studentId={student.id}
+            studentName={student.full_name}
+          />
           <EditStudentButton
             courses={courses ?? []}
             student={{

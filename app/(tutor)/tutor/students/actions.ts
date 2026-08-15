@@ -146,6 +146,59 @@ export async function updateStudent(formData: FormData): Promise<void> {
   revalidatePath("/tutor/students");
 }
 
+export type PasswordResetState = { error: string | null; done: boolean };
+
+/**
+ * Задать ученику новый пароль.
+ *
+ * Восстановления «по ссылке из письма» нет намеренно: SMTP не настроен
+ * (ENABLE_EMAIL_AUTOCONFIRM=true как раз чтобы обойтись без почтового сервера),
+ * а аккаунты и так заводит репетитор и передаёт доступ лично — тот же путь
+ * годится и для смены пароля.
+ *
+ * Старый пароль показать невозможно: в `auth.users.encrypted_password` лежит
+ * bcrypt-хеш, операция необратима. Поэтому здесь только «назначить новый».
+ * Admin API — единственный способ сделать это, не зная старого пароля.
+ */
+export async function resetStudentPassword(
+  _prev: PasswordResetState,
+  formData: FormData,
+): Promise<PasswordResetState> {
+  await requireRole("tutor");
+
+  const id = optional(formData.get("id"));
+  const password = String(formData.get("password") ?? "");
+
+  if (!id) return { error: "Не указан ученик", done: false };
+  if (password.length < 6) {
+    return { error: "Пароль должен быть не короче 6 символов", done: false };
+  }
+
+  // Менять пароль разрешено только ученику. Без этой проверки достаточно было бы
+  // подставить в форму чужой id, чтобы перехватить аккаунт репетитора: роль
+  // одна на всех (`authenticated`), а admin-клиент ниже не проверяет ничего сам.
+  const supabase = await createClient();
+  const { data: target } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (target?.role !== "student") {
+    return { error: "Такого ученика нет", done: false };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(id, { password });
+
+  if (error) {
+    return { error: `Не удалось сменить пароль: ${error.message}`, done: false };
+  }
+
+  // revalidatePath не нужен: на экранах пароль нигде не отображается.
+  return { error: null, done: true };
+}
+
 /**
  * Дополнить план ученика по его программе.
  *

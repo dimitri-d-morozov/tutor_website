@@ -1447,12 +1447,91 @@ rsync -avz deploy@<YOUR_IP>:/var/backups/supabase/ ~/backups/tutor/
 
 ## Шаг 8.4: Проверка восстановления (КРИТИЧНО!)
 
+Бэкап, который никогда не восстанавливали — это не бэкап, это мусор. Но
+наивный `gzip -dc dump.sql.gz | psql -U postgres` на образе `supabase/postgres`
+даёт **~849 ошибок** и восстанавливает данные лишь частично (без `auth.users` —
+то есть без единого аккаунта). Ниже — процедура, проверенная 15 августа 2026 на
+реальном дампе; она восстанавливает всё: 3 аккаунта, профили, темы, материалы,
+вопросы, storage-метаданные, RLS-политики, enum `question_type` с `multiple_choice`,
+функции и security-view.
+
+Три грабли, из-за которых наивная команда не работает:
+
+1. **Восстанавливать нужно под `supabase_admin`, а не `postgres`.** В образе
+   `supabase/postgres` суперпользователь — `supabase_admin`; `postgres` обычная
+   роль без прав на схемы `auth`, `storage`, `realtime`. Под `postgres` половина
+   дампа падает на `permission denied for schema auth` и т.п.
+2. **Схему `auth` в образе нужно сначала снести.** Образ создаёт свою (старую)
+   версию таблицы `auth.users`, дамп же несёт версию, мигрированную GoTrue.
+   `CREATE TABLE auth.users` отклоняется как «already exists», `COPY` падает на
+   отсутствующих колонках (`is_sso_user`), а за ним по FK рушатся `identities`,
+   `sessions`, `profiles`. Лечится одним `drop schema if exists auth cascade;`
+   **только для `auth`** — `public`/`storage` ронять нельзя, снесёт расширения.
+3. **Оставшиеся ~36 ошибок `... already exists` — норма.** Это объекты, которые
+   образ создаёт при инициализации (роли, event-триггеры, publication). Данные
+   они не затрагивают.
+
+### Тестовое восстановление (в одноразовый контейнер)
+
 ```bash
-# На тестовой машине (не на production!):
-gzip -dc db-2026-01-15-0300.sql.gz | psql -U postgres
+# 1. Одноразовый Postgres той же версии, что на проде (без -p: наружу не торчит)
+docker run -d --name restore-test \
+  -e POSTGRES_PASSWORD=testonly \
+  supabase/postgres:17.6.1.136
+sleep 25 && docker exec restore-test pg_isready -U postgres
+
+# 2. Снести конфликтующую auth-схему образа
+docker exec -i restore-test psql -U supabase_admin -d postgres \
+  -c "drop schema if exists auth cascade;"
+
+# 3. Восстановить дамп ПОД supabase_admin
+gzip -dc db-2026-08-15-0836.sql.gz \
+  | docker exec -i restore-test psql -U supabase_admin -d postgres \
+  > restore.log 2>&1
+
+# 4. Сколько ошибок и каких (ожидаем ~36, все "already exists")
+grep -c '^ERROR' restore.log
+grep '^ERROR' restore.log | sed -E 's/"[^"]*"/"X"/g' | sort | uniq -c | sort -rn
 ```
 
-Бэкап, который никогда не восстанавливали — это не бэкап, это мусор.
+### Проверка, что данные на месте
+
+```bash
+docker exec restore-test psql -U supabase_admin -d postgres -c "
+  select 'auth.users' t, count(*) from auth.users
+  union all select 'profiles', count(*) from public.profiles
+  union all select 'topics', count(*) from public.topics
+  union all select 'materials', count(*) from public.materials
+  union all select 'questions', count(*) from public.questions
+  union all select 'storage.objects', count(*) from storage.objects
+  union all select 'rls_policies',
+    count(*) from pg_policies where schemaname='public';"
+
+# аккаунты и роли
+docker exec restore-test psql -U supabase_admin -d postgres -c \
+  "select u.email, p.role from auth.users u
+   left join public.profiles p on p.id=u.id order by 1;"
+```
+
+Числа должны совпасть с продом (сверять через
+`docker compose exec -T db psql -U postgres -c "…"` на сервере).
+**`auth.users` = 0 — провал**: данные есть, а войти некому.
+
+### Уборка
+
+```bash
+docker rm -f restore-test
+```
+
+### Настоящее восстановление на прод (аварийное)
+
+Те же шаги, но целевой контейнер — рабочий `supabase-db`, и **перед** этим:
+сделать свежий дамп текущего (пусть и битого) состояния, остановить приложение
+(`sudo systemctl stop tutor-web`), чтобы никто не писал в БД во время наката.
+После восстановления — `notify pgrst, 'reload schema';` и `systemctl start tutor-web`.
+Файлы материалов восстанавливаются отдельно из `storage-*.tar.gz`
+(`tar xzf … -C /opt/supabase-stack/volumes`), иначе в `storage.objects` будут
+ссылки на файлы, которых нет на диске.
 
 ---
 
