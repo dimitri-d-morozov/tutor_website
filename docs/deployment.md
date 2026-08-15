@@ -1296,6 +1296,12 @@ sudo journalctl -u tutor-web -f
 
 # БЛОК 7: Firewall (для IP-доступа)
 
+> ⚠️ **Это временная конфигурация — до Блока 10.** Здесь порты 3000 и 8000
+> открываются наружу, чтобы сайт заработал по IP, пока нет домена. Трафик при
+> этом идёт по HTTP: пароли учеников и токены сессий летят открытым текстом.
+> Как только домен есть — **Блок 10**: HTTPS через nginx, а эти два порта
+> закрываются обратно. Не оставляйте сервер в состоянии Блока 7 надолго.
+
 ## Шаг 7.1: Открыть порты
 
 ```bash
@@ -1681,12 +1687,15 @@ docker rm -f restore-test
 ## Безопасность
 - [ ] root отключен
 - [ ] Вход только по SSH-ключу (пароли отключены)
-- [ ] Firewall включен (22/80/443 открыты, остальное закрыто)
+- [ ] Firewall: открыты только 22/80/443, порты 3000 и 8000 закрыты
 - [ ] fail2ban запущен
 - [ ] SERVICE_ROLE_KEY только на сервере в `.env.local` (chmod 600)
 - [ ] DISABLE_SIGNUP=true
 - [ ] Postgres только на 127.0.0.1
 - [ ] Studio только на 127.0.0.1
+- [ ] **HTTPS включён (Блок 10), HTTP редиректит на HTTPS**
+- [ ] **Сертификат валиден, `certbot.timer` активен**
+- [ ] **AAAA-записей у домена нет (или ведут на ваш IPv6, а не на регистратора)**
 
 ## Production
 - [ ] Swap 4 ГБ включен
@@ -1694,7 +1703,9 @@ docker rm -f restore-test
 - [ ] Supabase здоровый (docker compose ps)
 - [ ] Next.js собран (npm run build успешно)
 - [ ] systemd-unit tutor-web запущен и включен в автозагрузку
-- [ ] Приложение доступно http://<YOUR_IP>:3000
+- [ ] Приложение доступно по `https://<домен>` без порта
+- [ ] Материал с файлом открывается (подписанные ссылки через `api.<домен>`)
+- [ ] Загрузка файла > 5 МБ проходит (`client_max_body_size` в nginx)
 
 ## Доступ
 - [ ] Репетитор может логиниться
@@ -1894,6 +1905,244 @@ docker compose -f /opt/supabase-stack/docker-compose.yml logs -f --tail=50 rest 
 - [ ] Кеш схемы PostgREST сброшен (если менялась схема)
 - [ ] `sudo systemctl restart tutor-web`
 - [ ] Фича проверена в браузере
+
+---
+
+# 🔒 БЛОК 10: Домен и HTTPS
+
+До этого блока сайт живёт по `http://<IP>:3000`, и всё — пароли учеников,
+токены сессий, форма смены пароля — идёт по сети открытым текстом. Для проекта
+с персональными данными несовершеннолетних это главная дыра, важнее всего
+остального. Здесь закрываем её: домен без порта, TLS, а Supabase убираем
+из интернета за nginx.
+
+Проделано 15 августа 2026 на домене `ana-bios.ru` (регистратор reg.ru).
+
+## Зачем нужен второй домен `api.`
+
+Логично спросить: если браузер общается только с Next.js, зачем выставлять
+Supabase наружу вообще? Ответ — **подписанные ссылки на материалы**.
+`app/api/materials/[id]/open/route.ts` заканчивается на
+
+```ts
+return NextResponse.redirect(signed.signedUrl);
+```
+
+то есть по ссылке идёт **браузер**, а сама ссылка строится из
+`NEXT_PUBLIC_SUPABASE_URL`. Спрятать Supabase на localhost нельзя — скачивание
+файлов сломается. Всё остальное (логин, чтения, Server Actions) идёт через
+сервер Next.js, который ходит в Kong по `127.0.0.1`.
+
+Альтернатива без поддомена — отдать пути `/auth/v1`, `/rest/v1`, `/storage/v1`
+на основном домене. Работает, но смешивает приложение и API на одном хосте;
+поддомен бесплатен (это просто DNS-запись), поэтому выбран он.
+
+## Шаг 10.1: DNS
+
+| Тип | Имя | Значение |
+|-----|-----|----------|
+| A | `@` (корень) | `<YOUR_IP>` |
+| A | `www` | `<YOUR_IP>` |
+| A | `api` | `<YOUR_IP>` |
+
+**И обязательно удалить все записи `AAAA`**, если сервер без IPv6.
+
+### Грабля, которая стоит часа
+
+Регистратор оставляет `AAAA`-записи на свой парковочный хост. Браузеры и curl
+**предпочитают IPv6**, поэтому весь трафик уходит на страницу-заглушку
+регистратора, а сайт «не работает» при идеально настроенном nginx. Симптомы:
+
+- в браузере страница регистратора вместо сайта;
+- `curl -4 http://домен` отвечает правильно, а `curl http://домен` — нет;
+- по HTTPS браузер ругается «Подключение не защищено», потому что на
+  парковочном хосте самоподписанный сертификат (`issuer` = `subject`, поля `XX`).
+
+Диагностика — смотреть, **куда реально подключились**:
+
+```bash
+curl -sS -o /dev/null -w 'connected: %{remote_ip} code=%{http_code}\n' http://<домен>/
+dig +short <домен> AAAA        # должно быть пусто
+```
+
+### Проверка перед certbot
+
+У reg.ru два авторитативных сервера, и они расходятся на несколько минут.
+Спрашивать нужно **каждый**, иначе certbot попадёт на отставший и провалит
+валидацию (лимит — 5 неудач на хост в час):
+
+```bash
+for n in ns1.hosting.reg.ru ns2.hosting.reg.ru; do
+  echo "$n: $(dig +short @$n api.<домен> A) / AAAA: $(dig +short @$n <домен> AAAA)"
+done
+```
+
+Оба должны показать нужный IPv4 и пустой AAAA.
+
+**Свой роутер и браузер в расчёт не берите.** TTL записей — 3600 с, домашний
+роутер отдаёт устаревший ответ до часа, и это ни на что не влияет: у Let's
+Encrypt свои резолверы. Проверяйте `curl -4` и режим инкогнито, а не адресную
+строку обычного окна.
+
+## Шаг 10.2: nginx
+
+```bash
+sudo tee /etc/nginx/sites-available/<домен> >/dev/null <<'EOF'
+# Приложение
+server {
+    listen 80;
+    server_name <домен> www.<домен>;
+
+    # 52 МБ — как bodySizeLimit в next.config.ts и file_size_limit бакета.
+    # По умолчанию nginx рубит тело на 1 МБ, и загрузка презентаций,
+    # починенная в next.config.ts, сломается снова — уже на другом уровне.
+    client_max_body_size 52m;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        # Без этого Next.js считает соединение http и может выставить
+        # cookie сессии без флага Secure.
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade           $http_upgrade;
+        proxy_set_header Connection        "upgrade";
+    }
+}
+
+# Supabase API — нужен браузеру для подписанных ссылок на материалы
+server {
+    listen 80;
+    server_name api.<домен>;
+
+    client_max_body_size 52m;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+EOF
+
+sudo ln -sf /etc/nginx/sites-available/<домен> /etc/nginx/sites-enabled/
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+`nginx -t` перед перезагрузкой обязателен: reload битого конфига кладёт сайт.
+
+Проверка **до** сертификатов — так будет ясно, что именно сломалось, если
+что-то отвалится после certbot:
+
+```bash
+curl -4 -I http://<домен>/            # ждём 307 → /login
+curl -I http://<YOUR_IP>/ -H "Host: <домен>"   # то же, но в обход DNS
+```
+
+Второй вариант полезен, когда DNS ещё не разошёлся: он проверяет только nginx.
+
+## Шаг 10.3: Сертификаты
+
+```bash
+sudo apt install -y certbot python3-certbot-nginx
+
+# Сначала «вхолостую»: staging-лимиты щедрые, ошибка ничего не стоит.
+# --dry-run работает только с certonly, не с полным run.
+sudo certbot certonly --nginx \
+  -d <домен> -d www.<домен> -d api.<домен> --dry-run
+
+# Успех? Теперь по-настоящему — без certonly, чтобы certbot ещё и
+# переписал конфиг nginx, добавив 443 и редирект с 80.
+sudo certbot --nginx -d <домен> -d www.<домен> -d api.<домен>
+```
+
+Certbot 2.x включает редирект HTTP→HTTPS **сам, без вопроса** — если он ничего
+не спросил, это нормально.
+
+Автопродление ставится само (`certbot.timer`), cron не нужен:
+
+```bash
+sudo certbot certificates
+systemctl list-timers certbot.timer
+```
+
+## Шаг 10.4: Переключить адреса в приложении
+
+**Самый пропускаемый шаг.** Из `NEXT_PUBLIC_SUPABASE_URL` строятся подписанные
+ссылки, поэтому там должен стоять публичный HTTPS-адрес:
+
+```bash
+cd /opt/app
+sed -i 's|^NEXT_PUBLIC_SUPABASE_URL=.*|NEXT_PUBLIC_SUPABASE_URL=https://api.<домен>|' .env.local
+
+cd /opt/supabase-stack
+cp -p .env .env.bak.$(date +%F)
+sed -i \
+  -e 's|^SITE_URL=.*|SITE_URL=https://<домен>|' \
+  -e 's|^API_EXTERNAL_URL=.*|API_EXTERNAL_URL=https://api.<домен>|' \
+  -e 's|^SUPABASE_PUBLIC_URL=.*|SUPABASE_PUBLIC_URL=https://api.<домен>|' \
+  -e 's|^ADDITIONAL_REDIRECT_URLS=.*|ADDITIONAL_REDIRECT_URLS=https://<домен>|' \
+  .env
+docker compose up -d
+
+# ПЕРЕСБОРКА, не рестарт: NEXT_PUBLIC_* вшивается в бандл на этапе build.
+cd /opt/app
+npm run build
+sudo systemctl restart tutor-web
+```
+
+`systemctl restart` без `npm run build` оставит в сборке старый адрес — сайт
+будет работать, а материалы перестанут открываться. Симптом обманчивый:
+«всё хорошо, но файлы не скачиваются».
+
+Резервную копию `.env.bak.*` после проверки удалить: `shred -u .env.bak.*`.
+
+## Шаг 10.5: Закрыть старые порты
+
+Только после того, как проверили HTTPS **включая открытие материала**:
+
+```bash
+sudo ufw delete allow 3000
+sudo ufw delete allow 8000
+sudo ufw status numbered     # остаться должны только OpenSSH, 80, 443
+```
+
+Пока не проверили — не закрывайте: прямой доступ на 3000 полезен для отладки.
+
+Более строгий вариант на будущее: привязать Kong к `127.0.0.1:8000`
+в `docker-compose.yml`, чтобы он был недоступен вообще ниоткуда, кроме nginx,
+а не только закрыт файрволом.
+
+## Чек-лист проверки
+
+```bash
+curl -4 -I https://<домен>            # 307 → /login
+curl -4 -I http://<домен>             # 301 → https://
+curl -4 -I https://api.<домен>        # 401 от Kong — это правильно
+```
+
+`401` на `api.` — не ошибка: Kong отвергает запрос без API-ключа, значит проксирование работает.
+
+Внешняя проверка сертификата (`tls=0` — цепочка валидна):
+
+```bash
+curl -4 -sS -o /dev/null -w 'code=%{http_code} tls=%{ssl_verify_result}\n' https://<домен>/
+```
+
+В браузере (инкогнито, чтобы не мешал кеш):
+
+- [ ] `https://<домен>` — замок, страница входа
+- [ ] вход репетитором
+- [ ] **открытие материала с файлом** — проверяет подписанные ссылки через `api.`
+- [ ] загрузка файла > 5 МБ — проверяет `client_max_body_size`
+- [ ] вход учеником: занятия, тест
+- [ ] `http://<YOUR_IP>:3000` больше не отвечает
 
 ---
 
