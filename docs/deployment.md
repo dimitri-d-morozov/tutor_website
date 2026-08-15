@@ -1499,6 +1499,192 @@ gzip -dc db-2026-01-15-0300.sql.gz | psql -U postgres
 
 ---
 
+# 🔁 БЛОК 9: Обновление работающего сервера
+
+Блоки 1–8 — это разовая установка. Дальше каждый деплой выглядит так.
+Раздел написан по итогам реального обновления (фича `multiple_choice`,
+15 августа 2026), где половина шагов оказалась неочевидной.
+
+## Шаг 9.0: Зайти под `deploy`
+
+```bash
+ssh <ваш_логин>@<YOUR_IP>
+sudo -i -u deploy
+```
+
+Облачный провайдер даёт свой логин (например `xqrmztvkap`), но сервер собран
+вокруг пользователя `deploy`: ему принадлежат `/opt/app` и `/opt/supabase-stack`,
+он в группе `docker`, под ним работает systemd-юнит, и только он может читать
+`/opt/app/.env.local` (права `600`).
+
+**Первая команда после SSH — всегда `sudo -i -u deploy`.** Иначе каждая команда
+требует `sudo`, а Supabase CLI падает с `failed to read environment file: .env.local`:
+он читает `.env.local` для подстановок `env(...)` из `supabase/config.toml`.
+
+Права на `.env.local` ослаблять нельзя — там `SUPABASE_SERVICE_ROLE_KEY`,
+обходящий RLS на данных всех учеников.
+
+## Шаг 9.1: Бэкап ДО миграций
+
+```bash
+mkdir -p ~/backups
+cd /opt/supabase-stack
+docker compose exec -T db pg_dumpall -U postgres | gzip > ~/backups/db-$(date +%F-%H%M).sql.gz
+```
+
+Проверять обязательно, причём двумя разными проверками:
+
+```bash
+gzip -t ~/backups/db-*.sql.gz && echo "архив цел"
+gzip -dc ~/backups/db-*.sql.gz | tail -3
+```
+
+Последняя строка дампа должна быть `-- PostgreSQL database cluster dump complete` —
+её `pg_dumpall` пишет только при успешном завершении.
+
+**Почему мало `gzip -t`:** в конвейере `pg_dumpall | gzip` без `set -o pipefail`
+падение `pg_dumpall` на середине не роняет команду. `gzip` честно упакует
+обрезанные данные, файл будет валидным архивом и проверку целостности пройдёт —
+а половины таблиц в нём не окажется. Строка-трейлер отличает полный дамп
+от оборванного.
+
+Сверить содержимое дампа с живой БД:
+
+```bash
+gzip -dc ~/backups/db-*.sql.gz | awk '
+  /^COPY public\./ { t=$2; n=0; next }
+  t && /^\\\.$/    { print t, n; t=""; next }
+  t                { n++ }'
+
+docker compose exec -T db psql -U postgres -c "
+  select 'profiles' t, count(*) from profiles
+  union all select 'topics', count(*) from topics
+  union all select 'materials', count(*) from materials
+  union all select 'questions', count(*) from questions;"
+```
+
+Числа должны совпасть.
+
+## Шаг 9.2: Строка подключения к БД
+
+Порт Postgres **не опубликован на хост**. В `docker compose ps` у сервиса `db`
+стоит `5432/tcp` без `0.0.0.0:...->`: это значит «порт открыт внутри docker-сети»,
+а не «доступен с хоста». Поэтому:
+
+- `docker compose exec -T db psql …` работает всегда — команда выполняется **внутри** контейнера;
+- `--db-url …@127.0.0.1:5432…` падает с `ECONNREFUSED` — на хосте там никто не слушает.
+
+Supabase CLI ходит по TCP с хоста, поэтому ему нужен адрес контейнера:
+
+```bash
+DB_CID=$(docker compose -f /opt/supabase-stack/docker-compose.yml ps -q db)
+DB_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' "$DB_CID" | awk '{print $1}')
+
+export DB_URL="postgresql://postgres:$(grep -oP '^POSTGRES_PASSWORD=\K.*' /opt/supabase-stack/.env)@$DB_IP:5432/postgres?sslmode=disable"
+```
+
+Два обязательных момента:
+
+- **`?sslmode=disable`** — self-hosted Postgres работает без SSL, а CLI требует TLS
+  для любого хоста кроме localhost и падает с `The server does not support SSL connections`.
+  Шифровать нечего: трафик идёт по docker-мосту внутри одной машины.
+- **IP контейнера меняется** при пересоздании стека — выводить `$DB_URL` заново
+  каждую сессию, не сохранять в файл.
+
+Пароль подставляется из `.env`, чтобы не оседать в истории shell. В ошибках CLI
+может советовать «Network Restrictions» и ссылку на дашборд supabase.com — это
+текст для облачных проектов, к self-hosted он отношения не имеет.
+
+## Шаг 9.3: Обновление кода и схемы
+
+```bash
+cd /opt/app
+git pull
+npm ci
+npm run build
+supabase db push --db-url "$DB_URL"
+sudo systemctl restart tutor-web
+```
+
+Если миграция трогала enum, типы или сигнатуры функций — сбросить кеш схемы
+PostgREST, иначе он отдаёт старую:
+
+```bash
+docker compose -f /opt/supabase-stack/docker-compose.yml exec -T db psql -U postgres -c \
+  "notify pgrst, 'reload schema';"
+```
+
+## Шаг 9.4: Если история миграций пуста
+
+Схему можно применить и напрямую через `psql` — тогда таблицы в БД есть,
+а `supabase_migrations.schema_migrations` не существует. Проверить:
+
+```bash
+docker compose -f /opt/supabase-stack/docker-compose.yml exec -T db psql -U postgres -c \
+  "select version from supabase_migrations.schema_migrations order by version;"
+```
+
+Если таблицы нет — **`supabase db push` запускать нельзя**: CLI решит, что не применено
+ничего, и попробует прогнать все миграции с нуля по заполненной базе. Упадёт на
+`relation already exists` где-то в середине, оставив схему в промежуточном состоянии.
+
+Порядок восстановления:
+
+1. Применить недостающую миграцию вручную:
+
+   ```bash
+   docker compose -f /opt/supabase-stack/docker-compose.yml exec -T db \
+     psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
+     < /opt/app/supabase/migrations/<файл>.sql
+   ```
+
+   `ON_ERROR_STOP=1` обязателен — без него psql проглотит ошибку и пойдёт дальше.
+   `--single-transaction` здесь не нужен: `alter type … add value` спокойнее
+   коммитится отдельным оператором.
+
+2. Отметить **все** миграции применёнными, не выполняя их:
+
+   ```bash
+   cd /opt/app
+   supabase migration repair --status applied \
+     20260730000001 20260730000002 … <все версии> \
+     --db-url "$DB_URL"
+   ```
+
+   `repair` только пишет историю. Он же создаёт схему `supabase_migrations`
+   в том виде, какой ожидает CLI, — руками эту таблицу заводить не надо.
+
+3. Убедиться, что расхождений нет:
+
+   ```bash
+   supabase db push --db-url "$DB_URL"   # → Remote database is up to date
+   ```
+
+## Шаг 9.5: Логи
+
+```bash
+sudo journalctl -u tutor-web -n 100 --no-pager   # приложение
+sudo journalctl -u tutor-web -f                  # в реальном времени
+docker compose -f /opt/supabase-stack/docker-compose.yml logs -f --tail=50 rest db
+```
+
+Последняя команда — самая полезная при «кнопка ничего не делает»: оставить её
+запущенной, нажать кнопку и смотреть текст ошибки Postgres. Server Action может
+вернуть ошибку в state, а форма — не показать её.
+
+## ✅ Чеклист обновления
+
+- [ ] Зашёл под `deploy` (`sudo -i -u deploy`)
+- [ ] Бэкап сделан, трейлер проверен, счётчики строк сошлись
+- [ ] `$DB_URL` собран через IP контейнера и `?sslmode=disable`
+- [ ] `git pull && npm ci && npm run build`
+- [ ] `supabase db push` прошёл
+- [ ] Кеш схемы PostgREST сброшен (если менялась схема)
+- [ ] `sudo systemctl restart tutor-web`
+- [ ] Фича проверена в браузере
+
+---
+
 # 📝 ВАРИАНТЫ ВЫБОРА И ПОЧЕМУ
 
 ## Архитектура: один VPS vs App Platform + отдельный VPS
